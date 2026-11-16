@@ -30,7 +30,7 @@
       "ai": "Full AI",
       "date": "Nov 2026",
       "iconUrl": "assets/default_icon.png",
-      "url": "sandbox/Apache_Copter/index.html"
+      "url": "https://google.com"
     },
     {
       "id": "sandbox_Asteroid_Dodger_2",
@@ -55,7 +55,7 @@
     {
       "id": "sandbox_Super_Asteroid_Dodger",
       "folderName": "Super_Asteroid_Dodger",
-      "title": "Asteroid Dodger",
+      "title": "Super Asteroid Dodger",
       "developer": "Deagan",
       "ai": "Full AI",
       "date": "Nov 2026",
