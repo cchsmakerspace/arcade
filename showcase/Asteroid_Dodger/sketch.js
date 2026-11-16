@@ -8,16 +8,15 @@ let score = 0;
 let gameState = "START"; // "START", "PLAYING", "GAMEOVER"
 
 function setup() {
-  let canvas = createCanvas(1600, 1200);
+  let canvas = createCanvas(800, 600);
   
   // Auto-focus canvas so keyboard controls work instantly
   canvas.elt.tabIndex = 0;
   canvas.elt.focus();
 }
 
-function resetGame() {``
-    playerX = width / 2;
-    playerY = 540;
+function resetGame() {
+  playerX = width / 2;
   obstacles = [];
   score = 0;
   gameState = "PLAYING";
@@ -39,32 +38,24 @@ function draw() {
   } else if (gameState === "PLAYING") {
     // --- 1. MOVE PLAYER ---
     if (input.left())  playerX -= speed;
-      if (input.right()) playerX += speed;
-      if (input.up()) playerY -= speed;
-      if (input.down()) playerY += speed;
+    if (input.right()) playerX += speed;
 
     // Analog stick precision movement
     let stick = input.leftStick();
     if (Math.abs(stick.x) > 0) {
-        playerX += stick.x * speed;
-    
-      }
-      if (Math.abs(stick.y) > 0) {
-          playerY += stick.y * speed;
-
-      }
-
+      playerX += stick.x * speed;
+    }
 
     // Keep ship within canvas boundaries
     playerX = constrain(playerX, playerSize, width - playerSize);
-      playerY = constrain(playerY, playerSize, height - playerSize);
+
     // --- 2. SPAWN ASTEROIDS ---
-    if (frameCount % 5 === 0) {
+    if (frameCount % 20 === 0) {
       obstacles.push({
         x: random(20, width - 20),
         y: -30,
-        radius: random(15, 40),
-          speed: random(Math.max(8, score / 20)/2, Math.max(8,score/20))
+        radius: random(15, 30),
+        speed: random(4, 8)
       });
     }
 
@@ -94,7 +85,7 @@ function draw() {
     fill(0, 255, 100);
     noStroke();
     triangle(
-      playerX, playerY - 30,       // Top nose
+      playerX, playerY - 20,       // Top nose
       playerX - 18, playerY + 15,  // Bottom left wing
       playerX + 18, playerY + 15   // Bottom right wing
     );

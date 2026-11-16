@@ -4,8 +4,8 @@
       "id": "showcase_Asteroid_Dodger",
       "folderName": "Asteroid_Dodger",
       "title": "Asteroid Dodger",
-      "developer": "Google Gemini",
-      "ai": "Full AI but also Deagan",
+      "developer": "Spencer Kenney",
+      "ai": "Full AI",
       "date": "Oct 2026",
       "iconUrl": "showcase/Asteroid_Dodger/icon.png",
       "url": "showcase/Asteroid_Dodger/index.html"
@@ -51,6 +51,16 @@
       "date": "Unknown",
       "iconUrl": "assets/default_icon.png",
       "url": "sandbox/Coin_Collector/index.html"
+    },
+    {
+      "id": "sandbox_Super_Asteroid_Dodger",
+      "folderName": "Super_Asteroid_Dodger",
+      "title": "Asteroid Dodger",
+      "developer": "Deagan",
+      "ai": "Full AI",
+      "date": "Nov 2026",
+      "iconUrl": "sandbox/Super_Asteroid_Dodger/icon.png",
+      "url": "sandbox/Super_Asteroid_Dodger/index.html"
     },
     {
       "id": "sandbox_Too_Many_Cards",
