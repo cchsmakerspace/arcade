@@ -1,0 +1,136 @@
+{
+    "blocks": [
+        {
+            "index":0,
+            "name":"air",
+            "color":"rgb(72, 212, 240)",
+            "tile":0,
+            "breakable":false,
+            "replaceable":true,
+            "collision":false,
+            "blocksLight":false,
+            "drops":0,
+            "tags":["airlike"]
+        },
+        {
+            "index":1,
+            "name":"wall_air",
+            "color":"rgb(72, 212, 240)",
+            "tile":0,
+            "breakable":false,
+            "replaceable":true,
+            "collision":true,
+            "blocksLight":false,
+            "drops":1,
+            "tags":["airlike"]
+        },
+        {
+            "index":2,
+            "name":"rock",
+            "color":"rgb(94, 94, 94)",
+            "tile":1,
+            "breakable":true,
+            "replaceable":false,
+            "collision":true,
+            "blocksLight":true,
+            "drops":2,
+            "tags":{}
+        },
+        {
+            "index":3,
+            "name":"grass",
+            "color":"rgb(9, 133, 19)",
+            "tile":2,
+            "breakable":true,
+            "replaceable":false,
+            "collision":true,
+            "blocksLight":true,
+            "drops":3,
+            "tags":{}
+        },
+        {
+            "index":4,
+            "name":"trunk",
+            "color":"rgb(105, 63, 56)",
+            "tile":3,
+            "breakable":true,
+            "replaceable":false,
+            "collision":false,
+            "blocksLight":false,
+            "drops":6,
+            "tags":{}
+        },
+        {
+            "index":5,
+            "name":"leaves",
+            "color":"rgb(105, 143, 109)",
+            "tile":4,
+            "breakable":true,
+            "replaceable":false,
+            "collision":false,
+            "blocksLight":false,
+            "drops":5,
+            "tags":{}
+        },
+        {
+            "index":6,
+            "name":"log",
+            "color":"rgb(105, 63, 56)",
+            "tile":3,
+            "breakable":true,
+            "replaceable":false,
+            "collision":true,
+            "blocksLight":true,
+            "drops":6,
+            "tags":{}
+        },
+        {
+            "index":7,
+            "name":"planks",
+            "color":"rgb(186, 140, 99)",
+            "tile":5,
+            "breakable":true,
+            "replaceable":false,
+            "collision":true,
+            "blocksLight":true,
+            "drops":7,
+            "tags":{}
+        },
+        {
+            "index":8,
+            "name":"gold",
+            "color":"rgb(239, 199, 82)",
+            "tile":6,
+            "breakable":true,
+            "replaceable":false,
+            "collision":true,
+            "blocksLight":true,
+            "drops":8,
+            "tags":{}
+        },
+        {
+            "index":9,
+            "name":"water",
+            "color":"rgb(65, 141, 212)",
+            "tile":7,
+            "breakable":true,
+            "replaceable":true,
+            "collision":false,
+            "blocksLight":false,
+            "drops":9,
+            "tags":{}
+        },
+        {
+            "index":10,
+            "name":"torch",
+            "color":"rgb(65, 141, 212)",
+            "tile":9,
+            "breakable":true,
+            "replaceable":false,
+            "collision":false,
+            "blocksLight":false,
+            "drops":10,
+            "tags":{"alwaysImage":true, "lightLevel":5}
+        }
+    ]
+}

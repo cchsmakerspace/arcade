@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Default Title (Fallback) -->
+  <title>Arcade Game</title>
+  
+  <!-- p5.js Core Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+
+  <!-- Dynamic Title Script -->
+  <script>
+    fetch('meta.json')
+      .then(response => {
+        if (!response.ok) throw new Error("No meta.json found");
+        return response.json();
+      })
+      .then(data => {
+        if (data.title) {
+          document.title = data.title;
+        }
+      })
+      .catch(() => {
+        // Silently fails and keeps default "Arcade Game" title
+      });
+  </script>
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #121212;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Master Controls from Central Server Assets -->
+  <script src="/assets/controls.js"></script>
+
+  <!-- Student Game Logic -->
+  <script src="sketch.js"></script>
+
+</body>
+</html>

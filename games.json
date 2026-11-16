@@ -1,0 +1,86 @@
+{
+  "showcase": [
+    {
+      "id": "showcase_Asteroid_Dodger",
+      "folderName": "Asteroid_Dodger",
+      "title": "Asteroid Dodger",
+      "developer": "Google Gemini",
+      "ai": "Full AI but also Deagan",
+      "date": "Oct 2026",
+      "iconUrl": "showcase/Asteroid_Dodger/icon.png",
+      "url": "showcase/Asteroid_Dodger/index.html"
+    },
+    {
+      "id": "showcase_Control_Test",
+      "folderName": "Control_Test",
+      "title": "Controller Testing",
+      "developer": "S. Kenney",
+      "ai": "AI Collabration",
+      "date": "Oct 2026",
+      "iconUrl": "showcase/Control_Test/icon.png",
+      "url": "showcase/Control_Test/index.html"
+    }
+  ],
+  "sandbox": [
+    {
+      "id": "sandbox_Apache_Copter",
+      "folderName": "Apache_Copter",
+      "title": "Apache Copter",
+      "developer": "Tatum Hillhorst",
+      "ai": "Full AI",
+      "date": "Nov 2026",
+      "iconUrl": "assets/default_icon.png",
+      "url": "sandbox/Apache_Copter/index.html"
+    },
+    {
+      "id": "sandbox_Asteroid_Dodger_2",
+      "folderName": "Asteroid_Dodger_2",
+      "title": "Asteroid Dodger 2",
+      "developer": "Unknown",
+      "ai": "Unknown",
+      "date": "Unknown",
+      "iconUrl": "assets/default_icon.png",
+      "url": "sandbox/Asteroid_Dodger_2/index.html"
+    },
+    {
+      "id": "sandbox_Coin_Collector",
+      "folderName": "Coin_Collector",
+      "title": "Coin Collector",
+      "developer": "Unknown",
+      "ai": "Unknown",
+      "date": "Unknown",
+      "iconUrl": "assets/default_icon.png",
+      "url": "sandbox/Coin_Collector/index.html"
+    },
+    {
+      "id": "sandbox_Too_Many_Cards",
+      "folderName": "Too_Many_Cards",
+      "title": "Too Many Cards",
+      "developer": "John Uno",
+      "ai": "No AI",
+      "date": "Oct 2026",
+      "iconUrl": "assets/default_icon.png",
+      "url": "sandbox/Too_Many_Cards/index.html"
+    },
+    {
+      "id": "sandbox_flappy_bird",
+      "folderName": "flappy_bird",
+      "title": "Flappy Cube",
+      "developer": "Theo Glynn",
+      "ai": "Unknown",
+      "date": "Oct 2026",
+      "iconUrl": "assets/default_icon.png",
+      "url": "sandbox/flappy_bird/index.html"
+    },
+    {
+      "id": "sandbox_megaminer2d",
+      "folderName": "megaminer2d",
+      "title": "MegaMiner2d",
+      "developer": "Theo Glynn",
+      "ai": "Unknown",
+      "date": "Oct 2026",
+      "iconUrl": "assets/default_icon.png",
+      "url": "sandbox/megaminer2d/index.html"
+    }
+  ]
+}

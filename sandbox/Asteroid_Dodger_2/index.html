@@ -1,0 +1,1734 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asteroid Dodger - Ultimate Edition</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle at center, #0f0c29 0%, #0d0a1a 50%, #020208 100%);
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        h1 {
+            margin: 0 0 8px 0;
+            font-size: 32px;
+            letter-spacing: 6px;
+            color: #00ffcc;
+            text-shadow: 0 0 20px rgba(0, 255, 204, 0.8), 0 0 40px rgba(0, 255, 204, 0.4);
+            text-transform: uppercase;
+        }
+        .canvas-container {
+            position: relative;
+            box-shadow: 0 0 50px rgba(0, 255, 204, 0.25), 0 0 100px rgba(0, 0, 0, 0.8);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid rgba(0, 255, 204, 0.4);
+        }
+        canvas {
+            display: block;
+            background: #03030c;
+        }
+        .controls-info {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #a0a0c0;
+            text-align: center;
+            letter-spacing: 0.5px;
+            background: rgba(10, 10, 30, 0.6);
+            padding: 6px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>ASTEROID DODGER</h1>
+    <div class="canvas-container">
+        <canvas id="gameCanvas" width="1050" height="720"></canvas>
+    </div>
+    <div class="controls-info">
+        🎮 <b>Logitech / Controller:</b> Linker Stick / Steuerkreuz (Bewegen & Menü) | Button 0 / A (Bestätigen / Schießen) | Button 1 / B / X (Bombe) | Button 2 / Y / RB (Dash)<br>
+        ⌨️ <b>Tastatur:</b> W/A/S/D (Bewegen) | Leertaste (Schießen) | E (Bombe) | Shift (Dash)
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Web Audio API Sound Generator
+        class SoundSystem {
+            constructor() {
+                this.ctx = null;
+            }
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+            playShoot() {
+                if (!this.ctx) return;
+                let osc = this.ctx.createOscillator();
+                let gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            }
+            playExplosion() {
+                if (!this.ctx) return;
+                let osc = this.ctx.createOscillator();
+                let gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(120, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.3);
+            }
+            playPowerup() {
+                if (!this.ctx) return;
+                let osc = this.ctx.createOscillator();
+                let gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(900, this.ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.2);
+            }
+            playMenuSelect() {
+                if (!this.ctx) return;
+                let osc = this.ctx.createOscillator();
+                let gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.05);
+            }
+        }
+        const sound = new SoundSystem();
+
+        // Game State Core
+        let gameState = 'NAME_PROMPT'; 
+        let playerName = "Pilot";
+        let tempPlayerName = "";
+
+        let selectedDifficulty = 'NORMAL';
+        let leaderboardDiffIndex = 1;
+        let currentLang = 'DE';
+        let diffIndex = 1;
+        let diffOptions = ['LEICHT', 'NORMAL', 'SCHWER', 'EXTREM'];
+
+        let keyBinds = { shoot: 0, bomb: 1 };
+        let waitingForKeyBind = null;
+        let waitingForNameEdit = false;
+
+        const i18n = {
+            DE: {
+                start: "SPIEL STARTEN",
+                tutorial: "TUTORIAL",
+                diff: "SCHWIERIGKEIT",
+                name: "PILOTEN-NAME",
+                board: "BESTENLISTE",
+                settings: "EINSTELLUNGEN",
+                back: "ZURÜCK",
+                score: "PUNKTE",
+                wave: "LEVEL",
+                ready: "BEREIT",
+                recharging: "ABKLINGZEIT...",
+                gov: "SPIEL VORBEI",
+                shopTitle: "🛒 BOSS-SHOP (PERMANENTE UPGRADES)",
+                credits: "Schrott-Guthaben",
+                restart: "Drücke [ R ] für Neustart",
+                toMenu: "Drücke [ ENTER ] für Hauptmenü",
+                bossWarning: "⚠️ WARNUNG: BOSS NÄHERT SICH!",
+                bossIn: "BOSS IN",
+                getReady: "Gefahr erkannt! Bereit machen!",
+                tutTitle: "TUTORIAL - GRUNDLAGEN",
+                tutSteps: [
+                    "Willkommen Pilot! Nutze W/A/S/D oder den Controller-Stick zum Bewegen.",
+                    "Perfekt! Nun lerne zu schießen. Drücke LEERTASTE oder Button A.",
+                    "Zerstöre den Asteroiden, um Credits und Punkte zu sammeln!",
+                    "Achtung! Ein Mini-Boss erscheint! Er benötigt 3 Treffer.",
+                    "Er hat ein temporäres Upgrade fallen gelassen! Sammle es ein (12s).",
+                    "Ausgezeichnet! Das temporäre Upgrade wirkt. Zurück ins Menü?"
+                ]
+            },
+            EN: {
+                start: "START GAME",
+                tutorial: "TUTORIAL",
+                diff: "DIFFICULTY",
+                name: "PILOT NAME",
+                board: "LEADERBOARD",
+                settings: "SETTINGS",
+                back: "BACK",
+                score: "SCORE",
+                wave: "LEVEL",
+                ready: "READY",
+                recharging: "RECHARGING...",
+                gov: "GAME OVER",
+                shopTitle: "🛒 BOSS SHOP (PERMANENT UPGRADES)",
+                credits: "Scrap Balance",
+                restart: "Press [ R ] to Restart",
+                toMenu: "Press [ ENTER ] for Main Menu",
+                bossWarning: "⚠️ WARNING: BOSS APPROACHING!",
+                bossIn: "BOSS IN",
+                getReady: "Danger detected! Get ready!",
+                tutTitle: "TUTORIAL - BASICS",
+                tutSteps: [
+                    "Welcome Pilot! Use W/A/S/D or the controller stick to move.",
+                    "Perfect! Now learn to shoot. Press SPACEBAR or Button A.",
+                    "Destroy the asteroid to collect scrap and points!",
+                    "Watch out! A mini-boss appears! It takes 3 hits.",
+                    "It dropped a temporary upgrade! Collect it (12s).",
+                    "Excellent! The temporary upgrade is active. Return to menu?"
+                ]
+            }
+        };
+
+        let currentLevel = 1;
+        const totalLevels = 10;
+        let scoreForNextBoss = 80;
+
+        let score = 0;
+        let credits = 0;
+        let difficultyTimer = 0;
+        let spawnRate = 38;
+        let gameSpeedMultiplier = 1.1;
+
+        let activeBoss = null;
+        let bossCountdownTimer = 0;
+        let bossSpawnTriggered = false;
+        let shopOptions = [];
+        let shopSelection = 0;
+
+        let menuSelection = 0;
+        let settingsSelection = 0;
+        let screenShake = 0;
+
+        // Tutorial variables
+        let tutorialStep = 0;
+        let tutorialTimer = 0;
+        let tutorialMiniBoss = null;
+
+        // Player Ship Object
+        const player = {
+            x: canvas.width / 2 - 22,
+            y: canvas.height - 110,
+            width: 44,
+            height: 36,
+            speed: 5.5,
+            color: '#00ffcc',
+            lastShotTime: 0,
+            baseCooldown: 2000,
+            
+            // Permanente Shop Upgrades
+            permSpeedBoost: 0,
+            permCooldownReduction: 0,
+            permBossDmgMult: 1.0,
+            permScrapMult: 1,
+            permDroneActive: false,
+            permArmorVisual: false,
+            permLaserVisual: false,
+
+            // Temporäre Drop Pickups (Exakt 12 Sekunden = 720 Frames)
+            tempShield: false,
+            tempShieldHP: 0,
+            tempShieldTimer: 0,
+            tempSpeed: false,
+            tempSpeedTimer: 0,
+            tempRapid: false,
+            tempRapidTimer: 0,
+            tempLaser: false,
+            tempLaserTimer: 0,
+
+            bombs: 1,
+            dashCooldown: 0,
+            floatingText: null,
+            textTimer: 0,
+            textColor: '#fff'
+        };
+
+        let keys = {};
+        let bullets = [];
+        let bossBullets = [];
+        let asteroids = [];
+        let debris = [];
+        let meteors = [];
+        let particles = [];
+        let upgrades = [];
+        let engineParticles = [];
+        let lastSpaceState = false;
+
+        const controllerState = {
+            moveX: 0,
+            moveY: 0,
+            prevBtnState: {},
+            menuNavLatched: false,
+            lastNavTime: 0
+        };
+
+        const stars = [];
+        for (let i = 0; i < 120; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 2 + 0.5,
+                speed: Math.random() * 1.5 + 0.5
+            });
+        }
+
+        window.addEventListener('keydown', (e) => {
+            sound.init();
+            if (waitingForKeyBind) return;
+
+            if (gameState === 'NAME_PROMPT' || waitingForNameEdit) {
+                if (e.key === 'Enter' && tempPlayerName.trim().length > 0) {
+                    playerName = tempPlayerName.trim().substring(0, 12);
+                    if (gameState === 'NAME_PROMPT') gameState = 'MENU';
+                    waitingForNameEdit = false;
+                    sound.playMenuSelect();
+                } else if (e.key === 'Backspace') {
+                    tempPlayerName = tempPlayerName.slice(0, -1);
+                } else if (e.key.length === 1 && tempPlayerName.length < 12) {
+                    tempPlayerName += e.key;
+                }
+                return;
+            }
+
+            if (gameState === 'SHOP') {
+                if (e.key === 'ArrowUp' || e.key === 'KeyW') { shopSelection = (shopSelection - 1 + shopOptions.length) % shopOptions.length; sound.playMenuSelect(); }
+                if (e.key === 'ArrowDown' || e.key === 'KeyS') { shopSelection = (shopSelection + 1) % shopOptions.length; sound.playMenuSelect(); }
+                if (e.key === 'Enter' || e.key === 'Space') buyShopItem(shopSelection);
+                return;
+            }
+
+            if (gameState === 'GAME_OVER') {
+                if (e.key === 'r' || e.key === 'R') startGame();
+                else if (e.key === 'Enter' || e.key === 'Space') gameState = 'MENU';
+                return;
+            }
+
+            if (gameState === 'LEADERBOARD') {
+                let dir = (e.key === 'ArrowRight' || e.key === 'KeyD') ? 1 : (e.key === 'ArrowLeft' || e.key === 'KeyA') ? -1 : 0;
+                if (dir !== 0) {
+                    leaderboardDiffIndex = (leaderboardDiffIndex + dir + diffOptions.length) % diffOptions.length;
+                    sound.playMenuSelect();
+                }
+                if (e.key === 'Escape' || e.key === 'Enter' || e.key === 'Backspace') gameState = 'MENU';
+                return;
+            }
+
+            if (gameState === 'MENU') {
+                if (e.key === 'ArrowUp' || e.key === 'KeyW') { menuSelection = (menuSelection - 1 + 6) % 6; sound.playMenuSelect(); }
+                if (e.key === 'ArrowDown' || e.key === 'KeyS') { menuSelection = (menuSelection + 1) % 6; sound.playMenuSelect(); }
+                
+                let dir = (e.key === 'ArrowRight' || e.key === 'KeyD') ? 1 : (e.key === 'ArrowLeft' || e.key === 'KeyA') ? -1 : 0;
+                if (dir !== 0 && menuSelection === 2) {
+                    diffIndex = (diffIndex + dir + diffOptions.length) % diffOptions.length;
+                    selectedDifficulty = diffOptions[diffIndex];
+                    sound.playMenuSelect();
+                }
+
+                if (e.key === 'Enter' || e.key === 'Space') executeMenuSelection();
+            } else if (gameState === 'SETTINGS') {
+                if (e.key === 'ArrowUp' || e.key === 'KeyW') { settingsSelection = (settingsSelection - 1 + 4) % 4; sound.playMenuSelect(); }
+                if (e.key === 'ArrowDown' || e.key === 'KeyS') { settingsSelection = (settingsSelection + 1) % 4; sound.playMenuSelect(); }
+                
+                let dir = (e.key === 'ArrowRight' || e.key === 'KeyD') ? 1 : (e.key === 'ArrowLeft' || e.key === 'KeyA') ? -1 : 0;
+                if (dir !== 0 && settingsSelection === 0) {
+                    let langs = ['DE', 'EN'];
+                    let idx = langs.indexOf(currentLang);
+                    currentLang = langs[(idx + dir + langs.length) % langs.length];
+                    sound.playMenuSelect();
+                }
+
+                if (e.key === 'Enter' || e.key === 'Space') {
+                    if (settingsSelection === 1) waitingForKeyBind = 'shoot';
+                    else if (settingsSelection === 2) waitingForKeyBind = 'bomb';
+                    else if (settingsSelection === 3) gameState = 'MENU';
+                }
+            }
+
+            keys[e.code] = true;
+            if (e.code === 'Space' || e.code === 'KeyE' || e.code === 'ShiftLeft') {
+                e.preventDefault();
+                if (e.code === 'KeyE') useBomb();
+                if (e.code === 'ShiftLeft') triggerDash();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+        window.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if (gameState === 'PLAYING' || gameState === 'TUTORIAL') triggerDash();
+        });
+
+        function triggerDash() {
+            if ((gameState !== 'PLAYING' && gameState !== 'TUTORIAL') || player.dashCooldown > 0) return;
+            let dashDist = 110;
+            let dirX = 0, dirY = 0;
+            if (keys['ArrowLeft'] || keys['KeyA'] || controllerState.moveX < -0.3) dirX = -1;
+            if (keys['ArrowRight'] || keys['KeyD'] || controllerState.moveX > 0.3) dirX = 1;
+            if (keys['ArrowUp'] || keys['KeyW'] || controllerState.moveY < -0.3) dirY = -1;
+            if (keys['ArrowDown'] || keys['KeyS'] || controllerState.moveY > 0.3) dirY = 1;
+
+            if (dirX === 0 && dirY === 0) dirY = -1;
+
+            let effectiveSpeed = player.speed + player.permSpeedBoost + (player.tempSpeed ? 3.0 : 0);
+            player.x = Math.max(160, Math.min(canvas.width - player.width - 20, player.x + dirX * dashDist));
+            player.y = Math.max(20, Math.min(canvas.height - player.height - 20, player.y + dirY * dashDist));
+
+            createExplosion(player.x + player.width/2, player.y + player.height/2, '#00ffcc', 16);
+            player.dashCooldown = 75;
+            triggerFloatingText("⚡ DASH!", "#00ffcc");
+            sound.playPowerup();
+        }
+
+        function executeMenuSelection() {
+            sound.playMenuSelect();
+            if (menuSelection === 0) startGame();
+            else if (menuSelection === 1) startTutorial();
+            else if (menuSelection === 2) {
+                diffIndex = (diffIndex + 1) % diffOptions.length;
+                selectedDifficulty = diffOptions[diffIndex];
+            }
+            else if (menuSelection === 3) {
+                tempPlayerName = playerName;
+                waitingForNameEdit = true;
+            }
+            else if (menuSelection === 4) {
+                leaderboardDiffIndex = diffIndex;
+                gameState = 'LEADERBOARD';
+            }
+            else if (menuSelection === 5) gameState = 'SETTINGS';
+        }
+
+        function resetPlayerStats() {
+            player.x = canvas.width / 2 - 22;
+            player.y = canvas.height - 110;
+            player.speed = 5.5;
+            player.baseCooldown = 2000;
+            
+            // Permanente Shop-Werte zurücksetzen
+            player.permSpeedBoost = 0;
+            player.permCooldownReduction = 0;
+            player.permBossDmgMult = 1.0;
+            player.permScrapMult = 1;
+            player.permDroneActive = false;
+            player.permArmorVisual = false;
+            player.permLaserVisual = false;
+
+            // Temporäre Drop-Werte zurücksetzen
+            player.tempShield = false;
+            player.tempShieldHP = 0;
+            player.tempShieldTimer = 0;
+            player.tempSpeed = false;
+            player.tempSpeedTimer = 0;
+            player.tempRapid = false;
+            player.tempRapidTimer = 0;
+            player.tempLaser = false;
+            player.tempLaserTimer = 0;
+
+            player.bombs = 1;
+            player.dashCooldown = 0;
+        }
+
+        function startGame() {
+            score = 0;
+            credits = 0;
+            currentLevel = 1;
+            scoreForNextBoss = 80;
+            difficultyTimer = 0;
+            bullets = [];
+            bossBullets = [];
+            asteroids = [];
+            debris = [];
+            meteors = [];
+            particles = [];
+            upgrades = [];
+            activeBoss = null;
+            bossCountdownTimer = 0;
+            bossSpawnTriggered = false;
+
+            resetPlayerStats();
+
+            let mult = 1.1;
+            if (selectedDifficulty === 'LEICHT') { spawnRate = 55; mult = 0.9; }
+            else if (selectedDifficulty === 'NORMAL') { spawnRate = 38; mult = 1.2; }
+            else if (selectedDifficulty === 'SCHWER') { spawnRate = 26; mult = 1.5; }
+            else if (selectedDifficulty === 'EXTREM') { spawnRate = 18; mult = 2.0; }
+
+            gameSpeedMultiplier = mult;
+            gameState = 'PLAYING';
+        }
+
+        function startTutorial() {
+            resetPlayerStats();
+            score = 0;
+            credits = 0;
+            currentLevel = 1;
+            bullets = [];
+            bossBullets = [];
+            asteroids = [];
+            particles = [];
+            upgrades = [];
+            activeBoss = null;
+            tutorialMiniBoss = null;
+            bossCountdownTimer = 0;
+            bossSpawnTriggered = false;
+            tutorialStep = 0;
+            tutorialTimer = 0;
+            gameState = 'TUTORIAL';
+        }
+
+        function startBossCountdown() {
+            bossSpawnTriggered = true;
+            bossCountdownTimer = 180;
+            let t = i18n[currentLang];
+            triggerFloatingText(t.bossWarning, "#ff0055");
+        }
+
+        function spawnBoss() {
+            let hp = currentLevel === 1 ? 40 : (40 + currentLevel * 20);
+            activeBoss = {
+                x: canvas.width / 2 - 75,
+                y: 70,
+                width: 150,
+                height: 75,
+                hp: hp,
+                maxHp: hp,
+                direction: 1.8 + currentLevel * 0.12,
+                shootTimer: 0,
+                type: currentLevel
+            };
+        }
+
+        function openShop() {
+            gameState = 'SHOP';
+            shopSelection = 0;
+            
+            // Permanente Shop-Upgrades (nach Bossen)
+            let allItems = [
+                { id: 'armor', name: "🛡️ Schwere Panzerung (Permanent + Visual)", price: 45, apply: () => { player.permArmorVisual = true; triggerFloatingText("Panzerung installiert!", "#00ffcc"); } },
+                { id: 'speed', name: "⚡ Triebwerks-Tuning (+Permanent Speed)", price: 35, apply: () => { player.permSpeedBoost += 1.2; triggerFloatingText("Dauerhaft Schneller!", "#00ffcc"); } },
+                { id: 'rapid', name: "🔥 Laser-Kondensator (-Permanent Cooldown)", price: 55, apply: () => { player.permCooldownReduction += 300; triggerFloatingText("Feuerkraft erhöht!", "#00ffcc"); } },
+                { id: 'laserGun', name: "💥 Doppel-Laserkanonen (Permanent)", price: 65, apply: () => { player.permLaserVisual = true; triggerFloatingText("Doppellaser aktiv!", "#00ffcc"); } },
+                { id: 'bossDmg', name: "🚀 Plasma-Overdrive (+Boss-Schaden)", price: 50, apply: () => { player.permBossDmgMult += 0.5; triggerFloatingText("Boss-Schaden +50%", "#00ffcc"); } },
+                { id: 'bomb', name: "💣 Mega-Bombe Reserve (+1)", price: 40, apply: () => { player.bombs = Math.min(player.bombs + 1, 5); triggerFloatingText("Bombe aufgefüllt!", "#00ffcc"); } },
+                { id: 'collector', name: "💰 Magnet-Modul (Doppelter Schrott)", price: 65, apply: () => { player.permScrapMult += 1; triggerFloatingText("Schrott-Multiplikator!", "#ffd700"); } },
+                { id: 'drone', name: "🛸 Begleit-Drohnen-Modul (Permanent)", price: 75, apply: () => { player.permDroneActive = true; triggerFloatingText("Drohne aktiv!", "#00aaff"); } }
+            ];
+            allItems.sort(() => Math.random() - 0.5);
+            shopOptions = allItems.slice(0, 3);
+            shopOptions.push({ id: 'skip', name: currentLang === 'DE' ? "➡️ Shop verlassen & Weiterkämpfen" : "➡️ Leave Shop & Continue", price: 0, apply: () => {} });
+        }
+
+        function buyShopItem(idx) {
+            let item = shopOptions[idx];
+            if (item.id === 'skip') {
+                resumeAfterBossDefeated();
+                return;
+            }
+            if (credits >= item.price) {
+                credits -= item.price;
+                item.apply();
+                sound.playPowerup();
+                shopOptions.splice(idx, 1);
+                if (shopOptions.length <= 1) {
+                    resumeAfterBossDefeated();
+                }
+            } else {
+                triggerFloatingText(currentLang === 'DE' ? "Zu wenig Credits!" : "Not enough credits!", "#ff0055");
+            }
+        }
+
+        function resumeAfterBossDefeated() {
+            currentLevel++;
+            bossSpawnTriggered = false;
+            activeBoss = null;
+            scoreForNextBoss = score + 60 + (currentLevel * 20);
+            gameState = 'PLAYING';
+            triggerFloatingText(`LEVEL ${currentLevel} GESTARTET!`, "#00ffcc");
+        }
+
+        function getHighScores(diff = selectedDifficulty) {
+            try { 
+                let key = 'asteroid_dodger_lb_' + diff;
+                return JSON.parse(localStorage.getItem(key)) || []; 
+            }
+            catch { return []; }
+        }
+
+        function saveHighScore(name, finalScore) {
+            if (gameState === 'TUTORIAL') return;
+            let diff = selectedDifficulty;
+            let scores = getHighScores(diff);
+            let idx = scores.findIndex(s => s.name.toLowerCase() === name.toLowerCase());
+            if (idx !== -1) {
+                if (finalScore > scores[idx].score) scores[idx].score = finalScore;
+            } else {
+                scores.push({ name: name, score: finalScore });
+            }
+            scores.sort((a, b) => b.score - a.score);
+            let key = 'asteroid_dodger_lb_' + diff;
+            localStorage.setItem(key, JSON.stringify(scores.slice(0, 5)));
+        }
+
+        function useBomb() {
+            if ((gameState !== 'PLAYING' && gameState !== 'TUTORIAL') || player.bombs <= 0) return;
+            player.bombs--;
+            screenShake = 20;
+            sound.playExplosion();
+            createExplosion(canvas.width / 2, canvas.height / 2, '#ff00ff', 60);
+            let diffMult = selectedDifficulty === 'EXTREM' ? 2 : (selectedDifficulty === 'SCHWER' ? 1.5 : 1);
+            let earned = Math.round((asteroids.length + debris.length + meteors.length) * player.permScrapMult * diffMult);
+            score += Math.round((asteroids.length + debris.length + meteors.length) * diffMult);
+            credits += earned;
+            asteroids = [];
+            debris = [];
+            meteors = [];
+            if (activeBoss) activeBoss.hp -= Math.round(30 * player.permBossDmgMult);
+            if (tutorialMiniBoss) tutorialMiniBoss.hp -= 3;
+            triggerFloatingText("MEGA BOMBE! (+$" + earned + ")", "#ff00ff");
+        }
+
+        function triggerFloatingText(text, color) {
+            player.floatingText = text;
+            player.textColor = color;
+            player.textTimer = 70;
+        }
+
+        function shootBullet(customX = null, customY = null) {
+            if (gameState !== 'PLAYING' && gameState !== 'TUTORIAL') return;
+            const now = Date.now();
+            
+            // Effektiver Cooldown berechnet aus Basis, permanenten Shop-Upgrades und temporärem Rapid-Pickup (12s)
+            let effectiveCooldown = Math.max(300, player.baseCooldown - player.permCooldownReduction - (player.tempRapid ? 400 : 0));
+
+            if (customX !== null || now - player.lastShotTime >= effectiveCooldown) {
+                let sx = customX !== null ? customX : (player.x + player.width / 2 - 3);
+                let sy = customY !== null ? customY : player.y;
+
+                if ((player.tempLaser || player.permLaserVisual) && customX === null) {
+                    bullets.push({ x: player.x, y: player.y, width: 6, height: 20, speed: 14, color: '#ff00ff', dmg: 2 });
+                    bullets.push({ x: player.x + player.width - 6, y: player.y, width: 6, height: 20, speed: 14, color: '#ff00ff', dmg: 2 });
+                } else {
+                    bullets.push({ x: sx, y: sy, width: 6, height: 14, speed: 12, color: '#00ffcc', dmg: 1 });
+                    if (player.permArmorVisual && customX === null) {
+                        bullets.push({ x: player.x, y: player.y + 10, width: 4, height: 12, speed: 11, color: '#ffaa00', dmg: 1 });
+                        bullets.push({ x: player.x + player.width - 4, y: player.y + 10, width: 4, height: 12, speed: 11, color: '#ffaa00', dmg: 1 });
+                    }
+                }
+                if (customX === null) {
+                    player.lastShotTime = now;
+                    sound.playShoot();
+                }
+            }
+        }
+
+        function spawnAsteroid(easy = false) {
+            if (activeBoss || bossCountdownTimer > 0) return;
+            const size = Math.random() * 22 + 16;
+            asteroids.push({
+                x: Math.random() * (canvas.width - size * 2 - 200) + 180,
+                y: -size,
+                radius: size,
+                speed: easy ? 1.5 : (Math.random() * 2.2 + 1.8) * gameSpeedMultiplier * (1 + (currentLevel - 1) * 0.06),
+                color: currentLevel % 2 === 0 ? '#b85d33' : '#8c8c9e'
+            });
+
+            if (!easy && Math.random() < 0.25) {
+                debris.push({
+                    x: Math.random() * (canvas.width - 200) + 180,
+                    y: -20,
+                    width: 14,
+                    height: 14,
+                    speed: (Math.random() * 3.0 + 2.5) * gameSpeedMultiplier
+                });
+            }
+        }
+
+        function triggerMeteorShower() {
+            if (activeBoss || bossCountdownTimer > 0 || gameState === 'TUTORIAL') return;
+            triggerFloatingText(currentLang === 'DE' ? "🚨 METEORITEN-SCHWARM!" : "🚨 METEOR SHOWER!", "#ffaa00");
+            for (let i = 0; i < 15; i++) {
+                meteors.push({
+                    x: Math.random() * (canvas.width - 200) + 180,
+                    y: -Math.random() * 300 - 50,
+                    radius: Math.random() * 8 + 8,
+                    speed: Math.random() * 3.8 + 3.5,
+                    color: '#ff5500'
+                });
+            }
+        }
+
+        function spawnUpgrade(x, y, forcedType = null) {
+            // Gedroppte Upgrades von Asteroiden sind TEMPORÄR (halten 12 Sekunden = 720 Frames)
+            if (forcedType || Math.random() < 0.35) {
+                const types = ['shield', 'speed', 'rapid', 'laser', 'bomb'];
+                const type = forcedType || types[Math.floor(Math.random() * types.length)];
+                upgrades.push({ x, y, radius: 14, speed: 2.0, type });
+            }
+        }
+
+        function createExplosion(x, y, color, count = 18) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 7,
+                    vy: (Math.random() - 0.5) * 7,
+                    radius: Math.random() * 3.5 + 1,
+                    color,
+                    alpha: 1
+                });
+            }
+        }
+
+        function pollGamepad() {
+            const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+            let activeGp = null;
+            for (let i = 0; i < gamepads.length; i++) {
+                if (gamepads[i] && gamepads[i].connected) {
+                    activeGp = gamepads[i];
+                    break;
+                }
+            }
+
+            if (!activeGp) {
+                controllerState.moveX = 0;
+                controllerState.moveY = 0;
+                return;
+            }
+
+            const deadzone = 0.20;
+            let rawX = activeGp.axes[0] || 0;
+            let rawY = activeGp.axes[1] || 0;
+
+            let normX = Math.abs(rawX) > deadzone ? rawX : 0;
+            let normY = Math.abs(rawY) > deadzone ? rawY : 0;
+
+            let dpadUp = (activeGp.buttons[12] && activeGp.buttons[12].pressed) || (activeGp.axes[7] && activeGp.axes[7] < -0.5);
+            let dpadDown = (activeGp.buttons[13] && activeGp.buttons[13].pressed) || (activeGp.axes[7] && activeGp.axes[7] > 0.5);
+            let dpadLeft = (activeGp.buttons[14] && activeGp.buttons[14].pressed) || (activeGp.axes[6] && activeGp.axes[6] < -0.5);
+            let dpadRight = (activeGp.buttons[15] && activeGp.buttons[15].pressed) || (activeGp.axes[6] && activeGp.axes[6] > 0.5);
+
+            if (dpadLeft) normX = -1.0;
+            if (dpadRight) normX = 1.0;
+            if (dpadUp) normY = -1.0;
+            if (dpadDown) normY = 1.0;
+
+            controllerState.moveX = normX;
+            controllerState.moveY = normY;
+
+            const isBtnPressed = (idx) => activeGp.buttons[idx] && activeGp.buttons[idx].pressed;
+            const isBtnJustPressed = (idx) => {
+                let pressed = isBtnPressed(idx);
+                let justPressed = pressed && !controllerState.prevBtnState[idx];
+                controllerState.prevBtnState[idx] = pressed;
+                return justPressed;
+            };
+
+            const btnConfirm = isBtnPressed(0);
+            const btnConfirmJust = isBtnJustPressed(0);
+            const btnBombJust = isBtnJustPressed(1) || isBtnJustPressed(2);
+            const btnDashJust = isBtnJustPressed(3) || isBtnJustPressed(5);
+
+            if (waitingForKeyBind) {
+                for (let b = 0; b < activeGp.buttons.length; b++) {
+                    if (isBtnJustPressed(b)) {
+                        keyBinds[waitingForKeyBind] = b;
+                        waitingForKeyBind = null;
+                        sound.playMenuSelect();
+                        break;
+                    }
+                }
+                return;
+            }
+
+            const now = Date.now();
+
+            if (gameState === 'PLAYING' || gameState === 'TUTORIAL') {
+                if (btnConfirm) shootBullet();
+                if (btnBombJust) useBomb();
+                if (btnDashJust) triggerDash();
+            } else {
+                let navY = 0;
+                if (normY < -0.55) navY = -1;
+                else if (normY > 0.55) navY = 1;
+
+                let navX = 0;
+                if (normX < -0.55) navX = -1;
+                else if (normX > 0.55) navX = 1;
+
+                if (navY !== 0 || navX !== 0) {
+                    if (!controllerState.menuNavLatched && (now - controllerState.lastNavTime > 200)) {
+                        controllerState.menuNavLatched = true;
+                        controllerState.lastNavTime = now;
+                        sound.playMenuSelect();
+
+                        if (navY !== 0) {
+                            if (gameState === 'MENU') menuSelection = (menuSelection + navY + 6) % 6;
+                            else if (gameState === 'SHOP') shopSelection = (shopSelection + navY + shopOptions.length) % shopOptions.length;
+                            else if (gameState === 'SETTINGS') settingsSelection = (settingsSelection + navY + 4) % 4;
+                        }
+
+                        if (navX !== 0) {
+                            if (gameState === 'MENU' && menuSelection === 2) {
+                                diffIndex = (diffIndex + navX + diffOptions.length) % diffOptions.length;
+                                selectedDifficulty = diffOptions[diffIndex];
+                            } else if (gameState === 'LEADERBOARD') {
+                                leaderboardDiffIndex = (leaderboardDiffIndex + navX + diffOptions.length) % diffOptions.length;
+                            } else if (gameState === 'SETTINGS' && settingsSelection === 0) {
+                                let langs = ['DE', 'EN'];
+                                let idx = langs.indexOf(currentLang);
+                                currentLang = langs[(idx + navX + langs.length) % langs.length];
+                            }
+                        }
+                    }
+                } else {
+                    controllerState.menuNavLatched = false;
+                }
+
+                if (btnConfirmJust) {
+                    sound.playMenuSelect();
+                    if (gameState === 'MENU') executeMenuSelection();
+                    else if (gameState === 'SHOP') buyShopItem(shopSelection);
+                    else if (gameState === 'SETTINGS') {
+                        if (settingsSelection === 1) waitingForKeyBind = 'shoot';
+                        else if (settingsSelection === 2) waitingForKeyBind = 'bomb';
+                        else if (settingsSelection === 3) gameState = 'MENU';
+                    } else if (gameState === 'LEADERBOARD' || gameState === 'GAME_OVER') {
+                        gameState = 'MENU';
+                    }
+                }
+            }
+        }
+
+        function update() {
+            pollGamepad();
+
+            if (screenShake > 0) screenShake *= 0.88;
+
+            for (let s of stars) {
+                s.y += s.speed * (gameState === 'PLAYING' ? 1.5 : 0.5);
+                if (s.y > canvas.height) { s.y = 0; s.x = Math.random() * canvas.width; }
+            }
+
+            // Temporäre Drop-Timer verwalten (Exakt 12 Sekunden = 720 Frames)
+            if (player.tempShield) {
+                player.tempShieldTimer--;
+                if (player.tempShieldTimer <= 0) player.tempShield = false;
+            }
+            if (player.tempSpeed) {
+                player.tempSpeedTimer--;
+                if (player.tempSpeedTimer <= 0) player.tempSpeed = false;
+            }
+            if (player.tempRapid) {
+                player.tempRapidTimer--;
+                if (player.tempRapidTimer <= 0) player.tempRapid = false;
+            }
+            if (player.tempLaser) {
+                player.tempLaserTimer--;
+                if (player.tempLaserTimer <= 0) player.tempLaser = false;
+            }
+
+            if (gameState === 'TUTORIAL') {
+                updateTutorial();
+                return;
+            }
+
+            if (gameState === 'PLAYING') {
+                if (bossCountdownTimer > 0) {
+                    bossCountdownTimer--;
+                    if (bossCountdownTimer === 0) spawnBoss();
+                    return;
+                }
+
+                difficultyTimer++;
+                if (difficultyTimer % 350 === 0 && !activeBoss) {
+                    gameSpeedMultiplier += 0.05;
+                    if (spawnRate > 16) spawnRate -= 2;
+                }
+
+                if (difficultyTimer % 550 === 0 && !activeBoss) {
+                    triggerMeteorShower();
+                }
+
+                if (player.dashCooldown > 0) player.dashCooldown--;
+
+                if (!activeBoss && !bossSpawnTriggered && score >= scoreForNextBoss) {
+                    startBossCountdown();
+                }
+
+                if (player.permDroneActive) {
+                    if (Math.floor(Date.now() / 250) % 2 === 0) {
+                        shootBullet(player.x - 15, player.y + 10);
+                        shootBullet(player.x + player.width + 15, player.y + 10);
+                    }
+                }
+
+                let effectiveSpeed = player.speed + player.permSpeedBoost + (player.tempSpeed ? 3.0 : 0);
+                let moveX = controllerState.moveX;
+                let moveY = controllerState.moveY;
+
+                if (keys['ArrowLeft'] || keys['KeyA']) moveX = -1;
+                if (keys['ArrowRight'] || keys['KeyD']) moveX = 1;
+                if (keys['ArrowUp'] || keys['KeyW']) moveY = -1;
+                if (keys['ArrowDown'] || keys['KeyS']) moveY = 1;
+
+                player.x += moveX * effectiveSpeed;
+                player.y += moveY * effectiveSpeed;
+
+                player.x = Math.max(160, Math.min(canvas.width - player.width - 20, player.x));
+                player.y = Math.max(20, Math.min(canvas.height - player.height - 20, player.y));
+
+                if (Math.random() < 0.7) {
+                    engineParticles.push({
+                        x: player.x + player.width / 2 + (Math.random() - 0.5) * 10,
+                        y: player.y + player.height,
+                        vy: Math.random() * 3 + 2,
+                        alpha: 1,
+                        color: player.permSpeedBoost > 0 || player.tempSpeed ? '#00ffff' : '#ff5500'
+                    });
+                }
+
+                if (keys['Space']) {
+                    if (!lastSpaceState) { shootBullet(); lastSpaceState = true; }
+                } else { lastSpaceState = false; }
+
+                if (player.tempShield) {
+                    if (player.tempShieldHP <= 0) player.tempShield = false;
+                }
+                if (player.textTimer > 0) player.textTimer--;
+
+                for (let i = engineParticles.length - 1; i >= 0; i--) {
+                    engineParticles[i].y += engineParticles[i].vy;
+                    engineParticles[i].alpha -= 0.05;
+                    if (engineParticles[i].alpha <= 0) engineParticles.splice(i, 1);
+                }
+
+                for (let i = bullets.length - 1; i >= 0; i--) {
+                    bullets[i].y -= bullets[i].speed;
+                    if (bullets[i].y < 0) { bullets.splice(i, 1); continue; }
+
+                    if (activeBoss) {
+                        let bx = bullets[i].x;
+                        let by = bullets[i].y;
+                        if (bx > activeBoss.x && bx < activeBoss.x + activeBoss.width && by > activeBoss.y && by < activeBoss.y + activeBoss.height) {
+                            let dmgDealt = (bullets[i].dmg || 1) * player.permBossDmgMult;
+                            activeBoss.hp -= dmgDealt;
+                            createExplosion(bx, by, '#ff0055', 4);
+                            bullets.splice(i, 1);
+
+                            if (activeBoss.hp <= 0) {
+                                sound.playExplosion();
+                                screenShake = 25;
+                                createExplosion(activeBoss.x + activeBoss.width/2, activeBoss.y + activeBoss.height/2, '#ffaa00', 50);
+                                score += 50;
+                                let diffMult = selectedDifficulty === 'EXTREM' ? 2 : (selectedDifficulty === 'SCHWER' ? 1.5 : 1);
+                                let bonusCredits = Math.round(60 * player.permScrapMult * diffMult);
+                                credits += bonusCredits;
+                                openShop();
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (activeBoss) {
+                    activeBoss.x += activeBoss.direction;
+                    if (activeBoss.x < 170 || activeBoss.x + activeBoss.width > canvas.width - 20) {
+                        activeBoss.direction *= -1;
+                    }
+
+                    activeBoss.shootTimer++;
+                    let fireRate = Math.max(35, 75 - (activeBoss.type * 3));
+                    if (activeBoss.shootTimer % fireRate === 0) {
+                        let bx = activeBoss.x + activeBoss.width / 2;
+                        let by = activeBoss.y + activeBoss.height;
+
+                        if (activeBoss.type === 1) {
+                            bossBullets.push({ x: bx, y: by, vx: 0, vy: 3.5, width: 6, height: 12, color: '#00ffcc' });
+                        } else if (activeBoss.type <= 3) {
+                            for (let f = -1; f <= 1; f++) {
+                                bossBullets.push({ x: bx, y: by, vx: f * 1.2, vy: 3.8, width: 6, height: 12, color: '#ff0055' });
+                            }
+                        } else {
+                            for (let f = -2; f <= 2; f++) {
+                                bossBullets.push({ x: bx, y: by, vx: f * 1.1, vy: 4.2, width: 7, height: 14, color: '#ffaa00' });
+                            }
+                        }
+                    }
+                }
+
+                for (let i = bossBullets.length - 1; i >= 0; i--) {
+                    bossBullets[i].y += bossBullets[i].vy;
+                    bossBullets[i].x += bossBullets[i].vx;
+                    if (bossBullets[i].y > canvas.height) { bossBullets.splice(i, 1); continue; }
+
+                    let dx = (player.x + player.width / 2) - bossBullets[i].x;
+                    let dy = (player.y + player.height / 2) - bossBullets[i].y;
+                    if (Math.hypot(dx, dy) < player.width / 2 + 5) {
+                        bossBullets.splice(i, 1);
+                        if (player.tempShield) {
+                            player.tempShieldHP--;
+                            if (player.tempShieldHP <= 0) player.tempShield = false;
+                            triggerFloatingText(`SCHILD HIT! (${player.tempShieldHP})`, "#00ffff");
+                        } else {
+                            saveHighScore(playerName, score);
+                            gameState = 'GAME_OVER';
+                        }
+                    }
+                }
+
+                if (Math.random() * 100 < (100 / spawnRate)) spawnAsteroid();
+
+                for (let i = meteors.length - 1; i >= 0; i--) {
+                    meteors[i].y += meteors[i].speed;
+                    let dx = (player.x + player.width / 2) - meteors[i].x;
+                    let dy = (player.y + player.height / 2) - meteors[i].y;
+                    if (Math.hypot(dx, dy) < player.width / 2 + meteors[i].radius) {
+                        if (player.tempShield) {
+                            player.tempShieldHP--;
+                            if (player.tempShieldHP <= 0) player.tempShield = false;
+                            meteors.splice(i, 1);
+                            continue;
+                        } else {
+                            saveHighScore(playerName, score);
+                            gameState = 'GAME_OVER';
+                        }
+                    }
+                    if (meteors[i].y > canvas.height) meteors.splice(i, 1);
+                }
+
+                for (let i = debris.length - 1; i >= 0; i--) {
+                    debris[i].y += debris[i].speed;
+                    let dx = (player.x + player.width / 2) - debris[i].x;
+                    let dy = (player.y + player.height / 2) - debris[i].y;
+                    if (Math.hypot(dx, dy) < player.width / 2 + debris[i].width / 2) {
+                        if (player.tempShield) {
+                            player.tempShieldHP--;
+                            if (player.tempShieldHP <= 0) player.tempShield = false;
+                            debris.splice(i, 1);
+                            continue;
+                        } else {
+                            saveHighScore(playerName, score);
+                            gameState = 'GAME_OVER';
+                        }
+                    }
+                    if (debris[i].y > canvas.height) debris.splice(i, 1);
+                }
+
+                for (let i = asteroids.length - 1; i >= 0; i--) {
+                    asteroids[i].y += asteroids[i].speed;
+
+                    let dx = (player.x + player.width / 2) - asteroids[i].x;
+                    let dy = (player.y + player.height / 2) - asteroids[i].y;
+                    let distance = Math.hypot(dx, dy);
+
+                    if (distance < asteroids[i].radius + player.width / 3) {
+                        if (player.tempShield) {
+                            createExplosion(asteroids[i].x, asteroids[i].y, '#00ffcc');
+                            asteroids.splice(i, 1);
+                            player.tempShieldHP--;
+                            if (player.tempShieldHP <= 0) player.tempShield = false;
+                            triggerFloatingText("SCHILD TREFFER!", "#00ffff");
+                            continue;
+                        } else {
+                            saveHighScore(playerName, score);
+                            gameState = 'GAME_OVER';
+                        }
+                    }
+
+                    if (asteroids[i].y - asteroids[i].radius > canvas.height) {
+                        asteroids.splice(i, 1);
+                        let diffMult = selectedDifficulty === 'EXTREM' ? 2 : (selectedDifficulty === 'SCHWER' ? 1.5 : 1);
+                        score += Math.round(1 * diffMult);
+                        credits += Math.round(1 * player.permScrapMult * diffMult);
+                        continue;
+                    }
+
+                    for (let j = bullets.length - 1; j >= 0; j--) {
+                        let bdx = bullets[j].x + bullets[j].width / 2 - asteroids[i].x;
+                        let bdy = bullets[j].y - asteroids[i].y;
+                        if (Math.hypot(bdx, bdy) < asteroids[i].radius) {
+                            sound.playExplosion();
+                            createExplosion(asteroids[i].x, asteroids[i].y, '#ffaa00');
+                            spawnUpgrade(asteroids[i].x, asteroids[i].y);
+                            let diffMult = selectedDifficulty === 'EXTREM' ? 2 : (selectedDifficulty === 'SCHWER' ? 1.5 : 1);
+                            score += Math.round(1 * diffMult);
+                            credits += Math.round(1 * player.permScrapMult * diffMult);
+                            asteroids.splice(i, 1);
+                            bullets.splice(j, 1);
+                            break;
+                        }
+                    }
+                }
+
+                // Upgrades einsammeln (Exakt 12s Dauer)
+                for (let i = upgrades.length - 1; i >= 0; i--) {
+                    upgrades[i].y += upgrades[i].speed;
+                    let udistance = Math.hypot((player.x + player.width / 2) - upgrades[i].x, (player.y + player.height / 2) - upgrades[i].y);
+                    
+                    if (udistance < player.width / 2 + upgrades[i].radius) {
+                        sound.playPowerup();
+                        if (upgrades[i].type === 'shield') { player.tempShield = true; player.tempShieldHP = 3; player.tempShieldTimer = 720; triggerFloatingText("🛡️ SCHILD (12s)", "#00ffff"); }
+                        else if (upgrades[i].type === 'speed') { player.tempSpeed = true; player.tempSpeedTimer = 720; triggerFloatingText("⚡ SPEED BOOST (12s)", "#00ff00"); }
+                        else if (upgrades[i].type === 'rapid') { player.tempRapid = true; player.tempRapidTimer = 720; triggerFloatingText("🔥 SCHNELLER FEUERN (12s)", "#ffff00"); }
+                        else if (upgrades[i].type === 'laser') { player.tempLaser = true; player.tempLaserTimer = 720; triggerFloatingText("💥 DOPPEL LASER (12s)", "#ff00ff"); }
+                        else if (upgrades[i].type === 'bomb') { player.bombs = Math.min(player.bombs + 1, 5); triggerFloatingText("💣 EXTRA BOMBE", "#ff3300"); }
+                        upgrades.splice(i, 1);
+                        continue;
+                    }
+                    if (upgrades[i].y > canvas.height) upgrades.splice(i, 1);
+                }
+
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    particles[i].x += particles[i].vx;
+                    particles[i].y += particles[i].vy;
+                    particles[i].alpha -= 0.03;
+                    if (particles[i].alpha <= 0) particles.splice(i, 1);
+                }
+            }
+        }
+
+        function updateTutorial() {
+            tutorialTimer++;
+
+            let effectiveSpeed = player.speed + player.permSpeedBoost + (player.tempSpeed ? 3.0 : 0);
+            let moveX = controllerState.moveX;
+            let moveY = controllerState.moveY;
+
+            if (keys['ArrowLeft'] || keys['KeyA']) moveX = -1;
+            if (keys['ArrowRight'] || keys['KeyD']) moveX = 1;
+            if (keys['ArrowUp'] || keys['KeyW']) moveY = -1;
+            if (keys['ArrowDown'] || keys['KeyS']) moveY = 1;
+
+            player.x += moveX * effectiveSpeed;
+            player.y += moveY * effectiveSpeed;
+
+            player.x = Math.max(160, Math.min(canvas.width - player.width - 20, player.x));
+            player.y = Math.max(20, Math.min(canvas.height - player.height - 20, player.y));
+
+            if (keys['Space']) {
+                if (!lastSpaceState) { shootBullet(); lastSpaceState = true; }
+            } else { lastSpaceState = false; }
+
+            if (tutorialStep === 0 && tutorialTimer > 180) {
+                tutorialStep = 1;
+            } 
+            else if (tutorialStep === 1 && tutorialTimer > 360) {
+                tutorialStep = 2;
+                spawnAsteroid(true);
+            } 
+            else if (tutorialStep === 2 && score >= 1) {
+                tutorialStep = 3; 
+                tutorialMiniBoss = {
+                    x: canvas.width / 2 - 40,
+                    y: 90,
+                    width: 80,
+                    height: 45,
+                    hp: 3,
+                    maxHp: 3,
+                    direction: 1.5
+                };
+            }
+            else if (tutorialStep === 4 && upgrades.length === 0 && player.tempSpeed) {
+                tutorialStep = 5; 
+            }
+
+            if (tutorialMiniBoss) {
+                tutorialMiniBoss.x += tutorialMiniBoss.direction;
+                if (tutorialMiniBoss.x < 180 || tutorialMiniBoss.x + tutorialMiniBoss.width > canvas.width - 20) {
+                    tutorialMiniBoss.direction *= -1;
+                }
+            }
+
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                bullets[i].y -= bullets[i].speed;
+                if (bullets[i].y < 0) { bullets.splice(i, 1); continue; }
+
+                if (tutorialMiniBoss) {
+                    let bx = bullets[i].x;
+                    let by = bullets[i].y;
+                    if (bx > tutorialMiniBoss.x && bx < tutorialMiniBoss.x + tutorialMiniBoss.width && by > tutorialMiniBoss.y && by < tutorialMiniBoss.y + tutorialMiniBoss.height) {
+                        tutorialMiniBoss.hp--;
+                        createExplosion(bx, by, '#ffaa00', 6);
+                        bullets.splice(i, 1);
+
+                        if (tutorialMiniBoss.hp <= 0) {
+                            sound.playExplosion();
+                            createExplosion(tutorialMiniBoss.x + tutorialMiniBoss.width/2, tutorialMiniBoss.y + tutorialMiniBoss.height/2, '#00ffcc', 30);
+                            spawnUpgrade(tutorialMiniBoss.x + tutorialMiniBoss.width/2, tutorialMiniBoss.y + tutorialMiniBoss.height/2, 'speed');
+                            tutorialMiniBoss = null;
+                            tutorialStep = 4;
+                        }
+                        continue;
+                    }
+                }
+
+                for (let a = asteroids.length - 1; a >= 0; a--) {
+                    if (Math.hypot(bullets[i].x - asteroids[a].x, bullets[i].y - asteroids[a].y) < asteroids[a].radius) {
+                        sound.playExplosion();
+                        createExplosion(asteroids[a].x, asteroids[a].y, '#ffaa00');
+                        asteroids.splice(a, 1);
+                        bullets.splice(i, 1);
+                        score++;
+                        break;
+                    }
+                }
+            }
+
+            for (let i = upgrades.length - 1; i >= 0; i--) {
+                upgrades[i].y += upgrades[i].speed;
+                let udistance = Math.hypot((player.x + player.width / 2) - upgrades[i].x, (player.y + player.height / 2) - upgrades[i].y);
+                if (udistance < player.width / 2 + upgrades[i].radius) {
+                    sound.playPowerup();
+                    player.tempSpeed = true;
+                    player.tempSpeedTimer = 720;
+                    triggerFloatingText("⚡ SPEED BOOST (12s)", "#00ff00");
+                    upgrades.splice(i, 1);
+                }
+            }
+
+            for (let a of asteroids) a.y += a.speed;
+        }
+
+        function drawPlayerShip(x, y) {
+            ctx.save();
+            ctx.translate(x + player.width / 2, y + player.height / 2);
+
+            ctx.fillStyle = player.permSpeedBoost > 0 || player.tempSpeed ? '#00ffff' : '#ff5500';
+            ctx.beginPath();
+            ctx.moveTo(-6, player.height / 2);
+            ctx.lineTo(6, player.height / 2);
+            ctx.lineTo(0, player.height / 2 + 10 + Math.random() * 6);
+            ctx.closePath();
+            ctx.fill();
+
+            if (player.permArmorVisual) {
+                ctx.fillStyle = '#555577';
+                ctx.fillRect(-player.width / 2 - 4, -5, player.width + 8, 20);
+            }
+
+            ctx.fillStyle = player.color;
+            ctx.beginPath();
+            ctx.moveTo(0, -player.height / 2);
+            ctx.lineTo(player.width / 2, player.height / 2);
+            ctx.lineTo(-player.width / 2, player.height / 2);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#003344';
+            ctx.beginPath();
+            ctx.arc(0, -player.height / 6, 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (player.permLaserVisual || player.tempLaser) {
+                ctx.fillStyle = '#ff00ff';
+                ctx.fillRect(-player.width / 2 - 6, -12, 4, 18);
+                ctx.fillRect(player.width / 2 + 2, -12, 4, 18);
+            }
+
+            if (player.tempShield) {
+                ctx.strokeStyle = '#00ffff';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(0, 0, player.width * 0.85, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            if (player.permDroneActive) {
+                let angle = Date.now() * 0.005;
+                let dx1 = Math.cos(angle) * 32;
+                let dy1 = Math.sin(angle) * 32;
+
+                ctx.fillStyle = '#00aaff';
+                ctx.beginPath();
+                ctx.arc(dx1, dy1, 5, 0, Math.PI * 2);
+                ctx.arc(-dx1, -dy1, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function drawBackground() {
+            ctx.fillStyle = '#03030c';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let s of stars) {
+                ctx.fillStyle = 'rgba(255, 255, 255, ' + (s.size / 2.5) + ')';
+                ctx.fillRect(s.x, s.y, s.size, s.size);
+            }
+        }
+
+        function drawBoss(boss) {
+            ctx.save();
+            ctx.translate(boss.x + boss.width / 2, boss.y + boss.height / 2);
+
+            let primaryColor = boss.type === 10 ? '#ff0000' : (boss.type % 2 === 0 ? '#00ffff' : '#ff0055');
+
+            ctx.fillStyle = '#181828';
+            ctx.beginPath();
+            ctx.moveTo(-boss.width / 2, -boss.height / 4);
+            ctx.lineTo(0, -boss.height / 2 - 10);
+            ctx.lineTo(boss.width / 2, -boss.height / 4);
+            ctx.lineTo(boss.width / 2 - 12, boss.height / 2);
+            ctx.lineTo(-boss.width / 2 + 12, boss.height / 2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = primaryColor;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            ctx.fillStyle = primaryColor;
+            ctx.fillRect(-boss.width / 4, -boss.height / 4, boss.width / 2, boss.height / 2);
+
+            ctx.restore();
+
+            ctx.fillStyle = 'rgba(10, 10, 25, 0.85)';
+            ctx.fillRect(canvas.width / 2 - 200, 20, 400, 24);
+            ctx.strokeStyle = primaryColor;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(canvas.width / 2 - 200, 20, 400, 24);
+
+            ctx.fillStyle = primaryColor;
+            ctx.fillRect(canvas.width / 2 - 198, 22, 396 * (Math.max(0, boss.hp) / boss.maxHp), 20);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px Segoe UI';
+            ctx.textAlign = 'center';
+            ctx.fillText(`BOSS LEVEL ${boss.type} (${Math.ceil(boss.hp)} / ${boss.maxHp} HP)`, canvas.width / 2, 36);
+        }
+
+        function drawUI() {
+            let t = i18n[currentLang] || i18n.DE;
+
+            ctx.fillStyle = 'rgba(10, 10, 28, 0.9)';
+            ctx.fillRect(10, 15, 140, canvas.height - 30);
+            ctx.strokeStyle = 'rgba(0, 255, 204, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(10, 15, 140, canvas.height - 30);
+
+            ctx.fillStyle = '#00ffcc';
+            ctx.font = 'bold 15px Segoe UI';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${t.wave} ${currentLevel} / ${totalLevels}`, 80, 40);
+
+            for (let l = 1; l <= totalLevels; l++) {
+                let active = (l === currentLevel);
+                let passed = (l < currentLevel);
+                ctx.fillStyle = active ? '#00ffcc' : (passed ? '#00aa88' : '#444466');
+                ctx.font = active ? 'bold 13px Segoe UI' : '11px Segoe UI';
+                ctx.fillText((active ? "▶ " : "") + `${t.wave} ${l}` + (active ? " ◀" : ""), 80, 65 + (l * 20));
+            }
+
+            ctx.fillStyle = 'rgba(10, 10, 28, 0.9)';
+            ctx.fillRect(160, 15, 310, 45);
+            ctx.strokeStyle = 'rgba(0, 255, 204, 0.3)';
+            ctx.strokeRect(160, 15, 310, 45);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 15px Segoe UI';
+            ctx.textAlign = 'left';
+            ctx.fillText(`${t.score}: ${score}`, 170, 42);
+
+            ctx.fillStyle = '#ffd700';
+            ctx.fillText(`$${credits}`, 270, 42);
+
+            if (player.tempShield) {
+                ctx.fillStyle = '#00ffff';
+                ctx.fillText(`🛡️ ${player.tempShieldHP}`, 335, 42);
+            }
+
+            if (player.bombs > 0) {
+                ctx.fillStyle = '#ff3300';
+                ctx.fillText(`💣 ${player.bombs}`, 400, 42);
+            }
+
+            const now = Date.now();
+            const effectiveCooldown = Math.max(300, player.baseCooldown - player.permCooldownReduction - (player.tempRapid ? 400 : 0));
+            const cooldownProgress = Math.min((now - player.lastShotTime) / effectiveCooldown, 1);
+            
+            ctx.fillStyle = '#222233';
+            ctx.fillRect(160, canvas.height - 35, 150, 16);
+            ctx.fillStyle = cooldownProgress === 1 ? '#00ffcc' : '#ff5555';
+            ctx.fillRect(160, canvas.height - 35, 150 * cooldownProgress, 16);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(160, canvas.height - 35, 150, 16);
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px Segoe UI';
+            ctx.textAlign = 'center';
+            ctx.fillText(cooldownProgress === 1 ? t.ready : t.recharging, 235, canvas.height - 23);
+        }
+
+        function draw() {
+            ctx.save();
+
+            if (screenShake > 0.5) {
+                ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
+
+            let t = i18n[currentLang] || i18n.DE;
+
+            if (gameState === 'NAME_PROMPT' || waitingForNameEdit) {
+                ctx.fillStyle = 'rgba(5, 5, 20, 0.95)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = '#00ffcc';
+                ctx.font = 'bold 42px Segoe UI';
+                ctx.textAlign = 'center';
+                ctx.fillText("ASTEROID DODGER", canvas.width / 2, canvas.height / 2 - 120);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '22px Segoe UI';
+                ctx.fillText(t.name + ":", canvas.width / 2, canvas.height / 2 - 40);
+
+                ctx.fillStyle = '#1a1a3a';
+                ctx.fillRect(canvas.width / 2 - 175, canvas.height / 2, 350, 50);
+                ctx.strokeStyle = '#00ffcc';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(canvas.width / 2 - 175, canvas.height / 2, 350, 50);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 24px Segoe UI';
+                ctx.fillText(tempPlayerName + (Math.floor(Date.now() / 300) % 2 === 0 ? "_" : ""), canvas.width / 2, canvas.height / 2 + 34);
+
+                ctx.fillStyle = '#a0a0c0';
+                ctx.font = '15px Segoe UI';
+                ctx.fillText(currentLang === 'DE' ? "ENTER drücken zum Bestätigen" : "Press ENTER to Confirm", canvas.width / 2, canvas.height / 2 + 90);
+
+            } else if (gameState === 'MENU') {
+                ctx.fillStyle = '#00ffcc';
+                ctx.font = 'bold 48px Segoe UI';
+                ctx.textAlign = 'center';
+                ctx.fillText("ASTEROID DODGER", canvas.width / 2, canvas.height / 2 - 190);
+
+                let menuOptions = [
+                    t.start,
+                    t.tutorial, 
+                    t.diff + ": < " + selectedDifficulty + " >", 
+                    t.name + ": " + playerName,
+                    t.board, 
+                    t.settings
+                ];
+
+                for (let i = 0; i < menuOptions.length; i++) {
+                    let isSelected = (menuSelection === i);
+                    ctx.fillStyle = isSelected ? '#00ffcc' : '#ffffff';
+                    ctx.font = isSelected ? 'bold 22px Segoe UI' : '20px Segoe UI';
+                    ctx.fillText((isSelected ? "▶ " : "  ") + menuOptions[i] + (isSelected ? " ◀" : ""), canvas.width / 2, canvas.height / 2 - 110 + (i * 42));
+                }
+
+            } else if (gameState === 'TUTORIAL') {
+                drawUI();
+                drawPlayerShip(player.x, player.y);
+
+                for (let b of bullets) {
+                    ctx.fillStyle = b.color;
+                    ctx.fillRect(b.x, b.y, b.width, b.height);
+                }
+
+                for (let a of asteroids) {
+                    ctx.fillStyle = a.color;
+                    ctx.beginPath();
+                    ctx.arc(a.x, a.y, a.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                for (let u of upgrades) {
+                    ctx.fillStyle = '#00ff00';
+                    ctx.beginPath();
+                    ctx.arc(u.x, u.y, u.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#000000';
+                    ctx.font = 'bold 12px Segoe UI';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('⚡', u.x, u.y + 4);
+                }
+
+                if (tutorialMiniBoss) {
+                    ctx.fillStyle = '#ff0055';
+                    ctx.fillRect(tutorialMiniBoss.x, tutorialMiniBoss.y, tutorialMiniBoss.width, tutorialMiniBoss.height);
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.strokeRect(tutorialMiniBoss.x, tutorialMiniBoss.y, tutorialMiniBoss.width, tutorialMiniBoss.height);
+
+                    ctx.fillStyle = '#222';
+                    ctx.fillRect(tutorialMiniBoss.x, tutorialMiniBoss.y - 12, tutorialMiniBoss.width, 6);
+                    ctx.fillStyle = '#ff0055';
+                    ctx.fillRect(tutorialMiniBoss.x, tutorialMiniBoss.y - 12, tutorialMiniBoss.width * (tutorialMiniBoss.hp / tutorialMiniBoss.maxHp), 6);
+                }
+
+                ctx.fillStyle = 'rgba(10, 10, 30, 0.95)';
+                ctx.fillRect(canvas.width / 2 - 310, 100, 620, 150);
+                ctx.strokeStyle = '#00ffcc';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(canvas.width / 2 - 310, 100, 620, 150);
+
+                ctx.fillStyle = '#00ffcc';
+                ctx.font = 'bold 22px Segoe UI';
+                ctx.textAlign = 'center';
+                ctx.fillText(t.tutTitle, canvas.width / 2, 135);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '16px Segoe UI';
+
+                if (tutorialStep < 5) {
+                    ctx.fillText(t.tutSteps[tutorialStep], canvas.width / 2, 185);
+                    if (tutorialStep === 2) {
+                        ctx.fillStyle = '#ffd700';
+                        ctx.fillText(`Hits: ${score} / 1`, canvas.width / 2, 215);
+                    }
+                } else {
+                    ctx.fillStyle = '#00ffcc';
+                    ctx.fillText(t.tutSteps[5], canvas.width / 2, 175);
+                    ctx.fillStyle = '#ffd700';
+                    ctx.fillText(currentLang === 'DE' ? "Drücke [ ENTER ] oder Button A fürs Hauptmenü" : "Press [ ENTER ] or Button A for Main Menu", canvas.width / 2, 205);
+                    if (keys['Enter']) gameState = 'MENU';
+                }
+
+            } else if (gameState === 'SETTINGS') {
+                ctx.fillStyle = '#00ffcc';
+                ctx.font = 'bold 36px Segoe UI';
+                ctx.textAlign = 'center';
+                ctx.fillText(t.settings, canvas.width / 2, canvas.height / 2 - 150);
+
+                let setOpts = [
+                    "Sprache / Lang: < " + currentLang + " >",
+                    "Schuss-Taste: Button " + keyBinds.shoot + (waitingForKeyBind === 'shoot' ? " [DRÜCKE TASTE...]" : ""),
+                    "Bomben-Taste: Button " + keyBinds.bomb + (waitingForKeyBind === 'bomb' ? " [DRÜCKE TASTE...]" : ""),
+                    t.back
+                ];
+
+                for (let i = 0; i < setOpts.length; i++) {
+                    let isSelected = (settingsSelection === i);
+                    ctx.fillStyle = isSelected ? '#00ffcc' : '#ffffff';
+                    ctx.font = isSelected ? 'bold 20px Segoe UI' : '18px Segoe UI';
+                    ctx.fillText((isSelected ? "▶ " : "  ") + setOpts[i] + (isSelected ? " ◀" : ""), canvas.width / 2, canvas.height / 2 - 70 + (i * 45));
+                }
+
+            } else if (gameState === 'LEADERBOARD') {
+                ctx.fillStyle = '#00ffcc';
+                ctx.font = 'bold 36px Segoe UI';
+                ctx.textAlign = 'center';
+                ctx.fillText(t.board, canvas.width / 2, canvas.height / 2 - 180);
+
+                let currentLeaderboardDiff = diffOptions[leaderboardDiffIndex];
+                ctx.fillStyle = '#ffd700';
+                ctx.font = 'bold 20px Segoe UI';
+                ctx.fillText("< " + t.diff + ": " + currentLeaderboardDiff + " >", canvas.width / 2, canvas.height / 2 - 130);
+                ctx.fillStyle = '#a0a0c0';
+                ctx.font = '12px Segoe UI';
+                ctx.fillText(currentLang === 'DE' ? "(Wechseln mit Pfeiltasten / Stick)" : "(Change with Arrow Keys / Stick)", canvas.width / 2, canvas.height / 2 - 108);
+
+                let scores = getHighScores(currentLeaderboardDiff);
+                ctx.font = '18px Segoe UI';
+                for (let i = 0; i < 5; i++) {
+                    let entry = scores[i];
+                    let text = `${i + 1}. ${entry ? entry.name + " — " + entry.score + " Pkt" : "---"}`;
+                    if (i === 0) ctx.fillStyle = '#ffd700';
+                    else if (i === 1) ctx.fillStyle = '#c0c0c0';
+                    else if (i === 2) ctx.fillStyle = '#cd7f32';
+                    else ctx.fillStyle = '#a0a0c0';
+                    ctx.fillText(text, canvas.width / 2, canvas.height / 2 - 60 + (i * 35));
+                }
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '15px Segoe UI';
+                ctx.fillText(t.back + " [ENTER]", canvas.width / 2, canvas.height / 2 + 130);
+
+            } else if (gameState === 'SHOP') {
+                ctx.fillStyle = 'rgba(5, 5, 20, 0.95)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = '#ffd700';
+                ctx.font = 'bold 38px Segoe UI';
+                ctx.textAlign = 'center';
+                ctx.fillText(t.shopTitle, canvas.width / 2, canvas.height / 2 - 160);
+
+                ctx.fillStyle = '#00ffcc';
+                ctx.font = '22px Segoe UI';
+                ctx.fillText(t.credits + ": $" + credits, canvas.width / 2, canvas.height / 2 - 110);
+
+                for (let i = 0; i < shopOptions.length; i++) {
+                    let isSelected = (shopSelection === i);
+                    let item = shopOptions[i];
+                    ctx.fillStyle = isSelected ? '#00ffcc' : '#ffffff';
+                    ctx.font = isSelected ? 'bold 20px Segoe UI' : '18px Segoe UI';
+                    let text = item.price > 0 ? `${item.name} — $${item.price}` : item.name;
+                    ctx.fillText((isSelected ? "▶ " : "  ") + text + (isSelected ? " ◀" : ""), canvas.width / 2, canvas.height / 2 - 30 + (i * 50));
+                }
+
+            } else if (gameState === 'PLAYING' || gameState === 'GAME_OVER') {
+                drawUI();
+
+                for (let ep of engineParticles) {
+                    ctx.save();
+                    ctx.globalAlpha = ep.alpha;
+                    ctx.fillStyle = ep.color;
+                    ctx.fillRect(ep.x, ep.y, 3, 3);
+                    ctx.restore();
+                }
+
+                drawPlayerShip(player.x, player.y);
+
+                if (activeBoss) drawBoss(activeBoss);
+
+                if (bossCountdownTimer > 0) {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    let secondsLeft = Math.ceil(bossCountdownTimer / 60);
+                    ctx.fillStyle = '#ff0055';
+                    ctx.font = 'bold 56px Segoe UI';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`${t.bossIn} ${secondsLeft}...`, canvas.width / 2, canvas.height / 2 - 20);
+                    ctx.font = '20px Segoe UI';
+                    ctx.fillStyle = '#00ffcc';
+                    ctx.fillText(t.getReady, canvas.width / 2, canvas.height / 2 + 30);
+                }
+
+                for (let bb of bossBullets) {
+                    ctx.fillStyle = bb.color;
+                    ctx.fillRect(bb.x, bb.y, bb.width, bb.height);
+                }
+
+                for (let b of bullets) {
+                    ctx.fillStyle = b.color;
+                    ctx.fillRect(b.x, b.y, b.width, b.height);
+                }
+
+                for (let a of asteroids) {
+                    ctx.fillStyle = a.color;
+                    ctx.beginPath();
+                    ctx.arc(a.x, a.y, a.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                for (let m of meteors) {
+                    ctx.fillStyle = m.color;
+                    ctx.beginPath();
+                    ctx.arc(m.x, m.y, m.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                for (let d of debris) {
+                    ctx.fillStyle = '#ffaa00';
+                    ctx.fillRect(d.x, d.y, d.width, d.height);
+                }
+
+                for (let u of upgrades) {
+                    ctx.save();
+                    ctx.translate(u.x, u.y);
+                    let col = '#00ffff';
+                    let symbol = '🛡️';
+                    if (u.type === 'speed') { col = '#00ff00'; symbol = '⚡'; }
+                    else if (u.type === 'rapid') { col = '#ffff00'; symbol = '🔥'; }
+                    else if (u.type === 'laser') { col = '#ff00ff'; symbol = '💥'; }
+                    else if (u.type === 'bomb') { col = '#ff3300'; symbol = '💣'; }
+
+                    ctx.fillStyle = col;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, u.radius, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#000';
+                    ctx.font = 'bold 12px Segoe UI';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(symbol, 0, 1);
+                    ctx.restore();
+                }
+
+                for (let p of particles) {
+                    ctx.save();
+                    ctx.globalAlpha = p.alpha;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                if (player.textTimer > 0 && player.floatingText) {
+                    ctx.save();
+                    ctx.globalAlpha = player.textTimer / 70;
+                    ctx.fillStyle = player.textColor;
+                    ctx.font = 'bold 20px Segoe UI';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(player.floatingText, player.x + player.width / 2, player.y - 25);
+                    ctx.restore();
+                }
+
+                if (gameState === 'GAME_OVER') {
+                    ctx.fillStyle = 'rgba(5, 5, 16, 0.92)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    ctx.fillStyle = '#ff0055';
+                    ctx.font = 'bold 44px Segoe UI';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(t.gov, canvas.width / 2, canvas.height / 2 - 120);
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '20px Segoe UI';
+                    ctx.fillText(`Pilot: ${playerName} — ${t.score}: ${score}`, canvas.width / 2, canvas.height / 2 - 60);
+
+                    ctx.fillStyle = '#00ffcc';
+                    ctx.font = '18px Segoe UI';
+                    ctx.fillText(t.restart, canvas.width / 2, canvas.height / 2);
+
+                    ctx.fillStyle = '#a0a0c0';
+                    ctx.font = '15px Segoe UI';
+                    ctx.fillText(t.toMenu, canvas.width / 2, canvas.height / 2 + 45);
+                }
+            }
+
+            ctx.restore();
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        loop();
+    </script>
+</body>
+</html>

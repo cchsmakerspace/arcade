@@ -1,0 +1,11 @@
+add sun
+add lighting
+add ore
+add structures (trees ect)
+add crafting
+add mobs
+add particles
+add dimesions with portals
+
+lighting:
+each block has a light level. 10 if full bright, 0 if full black. Non collision blocks allow the propergation of light. blocks with no collision blocks above are 10.
