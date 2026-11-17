@@ -1,134 +1,234 @@
 function setup() {
-  createCanvas(800, 500);
+  createCanvas(860, 620);
 }
 
 function draw() {
-  background(30);
+  background(18, 22, 33);
 
-  // --- HEADER & INSTRUCTIONS ---
+  // --- HEADER & LIVE GAMEPAD STATUS ---
   fill(255);
   noStroke();
   textAlign(CENTER);
   textSize(22);
-  text("Joypad & Keyboard Input Diagnostic Test", width / 2, 40);
+  textStyle(BOLD);
+  text("8BitDo Ultimate 2C — Input & Keyboard Diagnostic", width / 2, 34);
+  textStyle(NORMAL);
 
-  textSize(13);
-  fill(160);
-  text(
-    "Press buttons on your Controller or Keyboard (WASD / IJKL / Space / Shift / Ctrl / Enter / Esc)\n*Note: Click inside this window and press a controller button to connect it.",
-    width / 2,
-    65
-  );
+  // Check active gamepad name
+  let padName = "No Gamepad Detected (Press any controller button to wake)";
+  let padColor = color(239, 68, 68);
+  let gps = navigator.getGamepads ? navigator.getGamepads() : [];
+  for (let gp of gps) {
+    if (gp) {
+      padName = `Connected: ${gp.id}`;
+      padColor = color(46, 204, 113);
+      break;
+    }
+  }
 
-  // --- DRAW CONTROLLER BODY ---
-  stroke(80);
+  textSize(12);
+  fill(padColor);
+  text(padName, width / 2, 56);
+
+  fill(148, 163, 184);
+  text("8BitDo Symbols shown with [Gamepad Index] and (Keyboard Equivalent)", width / 2, 74);
+
+  // =================================================================
+  // PANEL 1: TOP VIEW (SHOULDERS, TRIGGERS & L4/R4 BUMPERS)
+  // =================================================================
+  drawSectionFrame(80, 92, 700, 128, "TOP VIEW — SHOULDERS & EXTRA BUMPERS (L4 / R4)");
+
+  // Controller Top Silhouette
+  fill(38, 44, 62);
+  stroke(75, 85, 110);
   strokeWeight(2);
-  fill(50);
-  rect(150, 100, 500, 320, 40);
+  rect(130, 122, 600, 82, 24);
 
-  // --- 1. D-PAD & DIRECTIONALS ---
-  drawIndicator(230, 210, 24, 24, input.up(), "▲\n(W/Up)");
-  drawIndicator(230, 260, 24, 24, input.down(), "▼\n(S/Dn)");
-  drawIndicator(205, 235, 24, 24, input.left(), "◄ (A)");
-  drawIndicator(255, 235, 24, 24, input.right(), "► (D)");
+  // Center USB-C & Status LEDs
+  fill(25, 29, 42);
+  stroke(90);
+  rect(width / 2 - 22, 122, 44, 14, 4);
+  noStroke();
+  fill(140);
+  textSize(9);
+  text("USB-C", width / 2, 147);
+  // 8BitDo Star & Profile buttons (Hardware-only)
+  fill(70);
+  ellipse(width / 2 - 18, 175, 14, 14);
+  ellipse(width / 2 + 18, 175, 14, 14);
+  fill(150);
+  textSize(8);
+  text("★", width / 2 - 18, 175);
+  text("⊞", width / 2 + 18, 175);
 
-  // --- 2. ABXY FACE BUTTONS ---
-  drawIndicator(590, 260, 32, 32, input.a(), "A [0]\nSpace/K", true);
-  drawIndicator(630, 225, 32, 32, input.b(), "B [1]\nL", true);
-  drawIndicator(550, 225, 32, 32, input.x(), "X [2]\nJ", true);
-  drawIndicator(590, 190, 32, 32, input.y(), "Y [3]\nI", true);
+  // Left Shoulder Cluster (LT back, LB front-outer, L4 front-inner)
+  drawIndicator(215, 142, 115, 26, input.lt(), "LT [6]  (Shift)");
+  drawIndicator(195, 178, 95, 28, input.lb(), "LB [4]  (Q)");
+  drawIndicator(282, 178, 65, 28, input.l4(), "L4 [16] (Z)");
 
-  // --- 3. CENTER / SYSTEM BUTTONS ---
-  drawIndicator(350, 220, 26, 18, input.select(), "(-)\n[8]\nEsc");
-  drawIndicator(450, 220, 26, 18, input.start(), "(+)\n[9]\nEnter");
+  // Right Shoulder Cluster (RT back, RB front-outer, R4 front-inner)
+  drawIndicator(645, 142, 115, 26, input.rt(), "RT [7]  (Ctrl)");
+  drawIndicator(665, 178, 95, 28, input.rb(), "RB [5]  (E)");
+  drawIndicator(578, 178, 65, 28, input.r4(), "R4 [17] (C)");
 
-  // --- 4. SHOULDERS & TRIGGERS ---
-  drawIndicator(220, 120, 80, 20, input.lb(), "LB / L1 [4] (Q)");
-  drawIndicator(580, 120, 80, 20, input.rb(), "RB / R1 [5] (E)");
-  drawIndicator(220, 95, 80, 20, input.lt(), "LT / L2 [6] (Shift)");
-  drawIndicator(580, 95, 80, 20, input.rt(), "RT / R2 [7] (Ctrl)");
+  // =================================================================
+  // PANEL 2: FRONT VIEW (ASYMMETRIC STICKS, D-PAD, +/- & ABXY)
+  // =================================================================
+  drawSectionFrame(80, 234, 700, 366, "FRONT VIEW — FACE CONTROLS & ANALOG STICKS");
 
-  // --- 5. ANALOG THUMBSTICKS (Includes L3 / R3 Clicks) ---
+  // Controller Main Body + Grips Silhouette
+  push();
+  fill(38, 44, 62);
+  stroke(75, 85, 110);
+  strokeWeight(2);
+  // Left & Right Angled Grips
+  rect(155, 360, 115, 210, 45);
+  rect(590, 360, 115, 210, 45);
+  // Main Center Chassis
+  rect(165, 270, 530, 235, 55);
+  pop();
+
+  // --- UPPER LEFT: LEFT ANALOG STICK (Asymmetric Xbox Layout) ---
   let lStick = input.leftStick();
-  let rStick = input.rightStick();
+  drawStick(255, 355, lStick.x, lStick.y, input.l3(), "Left Stick\nL3 [10] (F)");
 
-  drawStick(320, 310, lStick.x, lStick.y, input.l3(), "Left Stick (L3 [10] / F)");
-  drawStick(480, 310, rStick.x, rStick.y, input.r3(), "Right Stick (R3 [11] / R)");
+  // --- LOWER LEFT: D-PAD ---
+  // D-Pad Cross Backing
+  fill(28, 33, 48);
+  noStroke();
+  rectMode(CENTER);
+  rect(330, 462, 34, 92, 6);
+  rect(330, 462, 92, 34, 6);
+  rectMode(CORNER);
+
+  drawIndicator(330, 430, 30, 28, input.up(),    "▲\nW / ↑");
+  drawIndicator(330, 494, 30, 28, input.down(),  "▼\nS / ↓");
+  drawIndicator(298, 462, 28, 30, input.left(),  "◄\nA / ←");
+  drawIndicator(362, 462, 28, 30, input.right(), "►\nD / →");
+
+  // --- CENTER SYSTEM BUTTONS: (-) VIEW & (+) MENU ---
+  drawIndicator(390, 348, 36, 26, input.select(), "(-)\n[8] Esc", true);
+  drawIndicator(470, 348, 36, 26, input.start(),  "(+)\n[9] Enter", true);
+
+  // Center 8BitDo Home Logo (Visual reference)
+  fill(28, 33, 48);
+  stroke(80);
+  ellipse(430, 388, 30, 30);
+  noStroke();
+  fill(120);
+  textSize(8);
+  text("HOME", 430, 388);
+
+  // --- LOWER RIGHT: RIGHT ANALOG STICK ---
+  let rStick = input.rightStick();
+  drawStick(530, 462, rStick.x, rStick.y, input.r3(), "Right Stick\nR3 [11] (R)");
+
+  // --- UPPER RIGHT: ABXY FACE BUTTONS (8BitDo Xbox Layout) ---
+  // Subtle ring around face buttons
+  noFill();
+  stroke(60, 70, 95);
+  ellipse(605, 355, 128, 128);
+
+  drawIndicator(605, 397, 38, 38, input.a(), "A [0]\nSpace/K", true, color(46, 204, 113));  // Bottom (Green accent)
+  drawIndicator(647, 355, 38, 38, input.b(), "B [1]\n(L)",     true, color(231, 76, 60));   // Right  (Red accent)
+  drawIndicator(563, 355, 38, 38, input.x(), "X [2]\n(J)",     true, color(52, 152, 219));  // Left   (Blue accent)
+  drawIndicator(605, 313, 38, 38, input.y(), "Y [3]\n(I)",     true, color(241, 196, 15));  // Top    (Yellow accent)
 }
 
-// --- HELPER FUNCTION: DRAW BUTTON INDICATOR ---
-function drawIndicator(x, y, w, h, isPressed, label, isCircle = false) {
+// --- HELPER: DRAW PANEL CONTAINER ---
+function drawSectionFrame(x, y, w, h, title) {
+  push();
+  fill(24, 29, 44);
+  stroke(50, 60, 85);
+  strokeWeight(1.5);
+  rect(x, y, w, h, 12);
+
+  fill(0, 243, 255);
+  noStroke();
+  textAlign(LEFT, CENTER);
+  textSize(10);
+  textStyle(BOLD);
+  text(title, x + 14, y + 14);
+  pop();
+}
+
+// --- HELPER: DRAW BUTTON INDICATOR ---
+function drawIndicator(x, y, w, h, isPressed, label, isCircle = false, accentColor = null) {
   push();
   rectMode(CENTER);
   ellipseMode(CENTER);
 
   if (isPressed) {
-    fill(46, 204, 113); // Bright Green when active
+    fill(46, 204, 113); // Bright Green when pressed
     stroke(255);
-    strokeWeight(2);
+    strokeWeight(2.5);
   } else {
-    fill(70);
-    stroke(100);
-    strokeWeight(1);
+    fill(55, 64, 88);
+    stroke(accentColor ? accentColor : color(110, 125, 155));
+    strokeWeight(accentColor ? 2 : 1.2);
   }
 
   if (isCircle) {
     ellipse(x, y, w, h);
   } else {
-    rect(x, y, w, h, 6);
+    rect(x, y, w, h, 7);
   }
 
-  fill(isPressed ? 0 : 220);
+  fill(isPressed ? 0 : 240);
   noStroke();
   textAlign(CENTER, CENTER);
-  textSize(8);
+  textSize(8.5);
+  textStyle(isPressed ? BOLD : NORMAL);
   text(label, x, y);
   pop();
 }
 
-// --- HELPER FUNCTION: DRAW ANALOG STICK WITH CLICK INDICATOR ---
+// --- HELPER: DRAW ANALOG STICK WITH CLICK INDICATOR ---
 function drawStick(centerX, centerY, axisX, axisY, isClicked, label) {
   push();
   ellipseMode(CENTER);
 
-  // Outer ring
-  fill(40);
-  stroke(100);
-  ellipse(centerX, centerY, 60, 60);
+  // Outer housing ring
+  fill(28, 33, 48);
+  stroke(90, 105, 135);
+  strokeWeight(1.5);
+  ellipse(centerX, centerY, 68, 68);
 
-  // Inner stick position
+  // Inner thumbstick cap position
   let posX = centerX + axisX * 22;
   let posY = centerY + axisY * 22;
-
   let isDeflected = Math.abs(axisX) > 0 || Math.abs(axisY) > 0;
 
-  // Change color: Green if clicked, teal if deflected, dark gray if neutral
   if (isClicked) {
-    fill(46, 204, 113); // Bright green when L3/R3 pressed
+    fill(46, 204, 113);
     stroke(255);
     strokeWeight(2);
   } else if (isDeflected) {
-    fill(52, 152, 219); // Blue when moved
+    fill(0, 243, 255);
     noStroke();
   } else {
-    fill(100);
-    noStroke();
+    fill(85, 96, 125);
+    stroke(120);
+    strokeWeight(1);
   }
 
-  ellipse(posX, posY, 28, 28);
+  ellipse(posX, posY, 32, 32);
 
-  // Text inside the stick head
-  fill(isClicked ? 0 : 255);
+  fill(isClicked || isDeflected ? 0 : 255);
+  noStroke();
   textAlign(CENTER, CENTER);
   textSize(8);
+  textStyle(BOLD);
   text(isClicked ? "CLICK!" : "", posX, posY);
 
-  // Text label & numerical readouts below stick
-  fill(180);
+  // Label & live X/Y coordinates below stick
+  fill(210);
+  textStyle(NORMAL);
   textAlign(CENTER);
-  textSize(10);
-  text(label, centerX, centerY + 45);
-  textSize(9);
-  text(`X:${axisX.toFixed(2)} Y:${axisY.toFixed(2)}`, centerX, centerY + 58);
+  textSize(9.5);
+  text(label, centerX, centerY + 46);
+  fill(140);
+  textSize(8.5);
+  text(`X:${axisX.toFixed(2)}  Y:${axisY.toFixed(2)}`, centerX, centerY + 69);
   pop();
 }
