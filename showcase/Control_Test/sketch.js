@@ -40,59 +40,56 @@ function draw() {
   // =================================================================
   drawCard(20, 68, 500, 480, "FRONT VIEW");
   
-  // Draw front controller photo centered inside left card
   let fX = 45, fY = 100, fW = 450, fH = 420;
   image(imgFront, fX, fY, fW, fH);
 
-  // --- Center System Buttons ---
-  // (-) View Button [8]
-  drawOverlayPin(fX + fW * 0.355, fY + fH * 0.305, 32, input.select(), "(-)\nEsc");
-  // (+) Menu Button [9]
-  drawOverlayPin(fX + fW * 0.635, fY + fH * 0.305, 32, input.start(), "(+)\nEnter");
-  // Home / Guide Button [16]
-  drawOverlayPin(fX + fW * 0.495, fY + fH * 0.310, 38, input.home(), "HOME\n[16] / H");
+  // --- Center System Buttons (Dialed in to match physical buttons) ---
+  drawOverlayPin(fX + fW * 0.362, fY + fH * 0.352, 32, input.select(), "(-)\nEsc");
+  drawOverlayPin(fX + fW * 0.638, fY + fH * 0.352, 32, input.start(),  "(+)\nEnter");
+  drawOverlayPin(fX + fW * 0.500, fY + fH * 0.358, 38, input.home(),   "HOME\n[16] / H");
 
   // Hardware-Only Buttons (Square Profile & Star Mapping)
-  drawHardwareNote(fX + fW * 0.435, fY + fH * 0.425, "■\nHW");
-  drawHardwareNote(fX + fW * 0.565, fY + fH * 0.425, "★\nMap");
+  drawHardwareNote(fX + fW * 0.433, fY + fH * 0.432, "■\nHW");
+  drawHardwareNote(fX + fW * 0.567, fY + fH * 0.432, "★\nMap");
 
   // --- ABXY Face Buttons ---
-  drawOverlayPin(fX + fW * 0.790, fY + fH * 0.340, 38, input.y(), "Y\n(I)");       // Top
-  drawOverlayPin(fX + fW * 0.720, fY + fH * 0.430, 38, input.x(), "X\n(J)");       // Left
-  drawOverlayPin(fX + fW * 0.865, fY + fH * 0.430, 38, input.b(), "B\n(L)");       // Right
-  drawOverlayPin(fX + fW * 0.795, fY + fH * 0.515, 38, input.a(), "A\nSpace");   // Bottom
+  drawOverlayPin(fX + fW * 0.793, fY + fH * 0.362, 38, input.y(), "Y\n(I)");        // Top
+  drawOverlayPin(fX + fW * 0.722, fY + fH * 0.448, 38, input.x(), "X\n(J)");        // Left
+  drawOverlayPin(fX + fW * 0.866, fY + fH * 0.448, 38, input.b(), "B\n(L)");        // Right
+  drawOverlayPin(fX + fW * 0.795, fY + fH * 0.532, 38, input.a(), "A\nSpace/K");    // Bottom
 
   // --- D-Pad ---
-  drawOverlayPin(fX + fW * 0.320, fY + fH * 0.535, 28, input.up(),    "▲\nW");
-  drawOverlayPin(fX + fW * 0.320, fY + fH * 0.675, 28, input.down(),  "▼\nS");
-  drawOverlayPin(fX + fW * 0.255, fY + fH * 0.605, 28, input.left(),  "◄\nA");
-  drawOverlayPin(fX + fW * 0.385, fY + fH * 0.605, 28, input.right(), "►\nD");
+  drawOverlayPin(fX + fW * 0.352, fY + fH * 0.558, 28, input.up(),    "▲\nW");
+  drawOverlayPin(fX + fW * 0.352, fY + fH * 0.688, 28, input.down(),  "▼\nS");
+  drawOverlayPin(fX + fW * 0.285, fY + fH * 0.623, 28, input.left(),  "◄\nA");
+  drawOverlayPin(fX + fW * 0.418, fY + fH * 0.623, 28, input.right(), "►\nD");
 
   // --- Analog Sticks (Live movement + L3/R3 click) ---
   let lStick = input.leftStick();
-  drawStickOverlay(fX + fW * 0.185, fY + fH * 0.415, 64, lStick.x, lStick.y, input.l3(), "L3 (F)");
+  drawStickOverlay(fX + fW * 0.192, fY + fH * 0.432, 64, lStick.x, lStick.y, input.l3(), "L3 (F)");
 
   let rStick = input.rightStick();
-  drawStickOverlay(fX + fW * 0.630, fY + fH * 0.615, 64, rStick.x, rStick.y, input.r3(), "R3 (R)");
+  drawStickOverlay(fX + fW * 0.635, fY + fH * 0.632, 64, rStick.x, rStick.y, input.r3(), "R3 (R)");
 
   // =================================================================
-  // RIGHT PANEL: TOP EDGE PHOTO OVERLAY & LEGEND (x: 540..940)
+  // RIGHT PANEL: TOP EDGE PHOTO OVERLAY (ROTATED 180°) & LEGEND
   // =================================================================
-  drawCard(540, 68, 400, 260, "TOP EDGE VIEW (LOOKING FROM FRONT)");
+  drawCard(540, 68, 400, 260, "TOP EDGE VIEW");
 
   let tX = 560, tY = 110, tW = 360, tH = 155;
   image(imgTop, tX, tY, tW, tH);
 
-  // Note: Photo shows controller facing viewer, so Right side (RB/RT/R4) is on Left!
-  // Right Side Triggers/Bumpers (Left side of photo)
-  drawOverlayRect(tX + tW * 0.205, tY + tH * 0.43, 74, 34, input.rb(), "RB (E)");
-  drawOverlayRect(tX + tW * 0.165, tY + tH * 0.68, 52, 42, input.rt(), "RT (Ctrl)");
-  drawOverlayRect(tX + tW * 0.275, tY + tH * 0.62, 34, 28, input.r4(), "R4\n(C)");
+  // With top.png rotated 180°, Left is on Left and Right is on Right:
+  // Triggers (LT/RT) sit along the upper edge; Bumpers (LB/RB) & L4/R4 sit below them.
+  // Left Shoulder Cluster (Left side of rotated image)
+  drawOverlayRect(tX + tW * 0.165, tY + tH * 0.32, 54, 40, input.lt(), "LT (Shift)");
+  drawOverlayRect(tX + tW * 0.205, tY + tH * 0.57, 74, 34, input.lb(), "LB (Q)");
+  drawOverlayRect(tX + tW * 0.275, tY + tH * 0.38, 34, 28, input.l4(), "L4\n(Z)");
 
-  // Left Side Triggers/Bumpers (Right side of photo)
-  drawOverlayRect(tX + tW * 0.795, tY + tH * 0.43, 74, 34, input.lb(), "LB (Q)");
-  drawOverlayRect(tX + tW * 0.835, tY + tH * 0.68, 52, 42, input.lt(), "LT (Shift)");
-  drawOverlayRect(tX + tW * 0.725, tY + tH * 0.62, 34, 28, input.l4(), "L4\n(Z)");
+  // Right Shoulder Cluster (Right side of rotated image)
+  drawOverlayRect(tX + tW * 0.835, tY + tH * 0.32, 54, 40, input.rt(), "RT (Ctrl)");
+  drawOverlayRect(tX + tW * 0.795, tY + tH * 0.57, 74, 34, input.rb(), "RB (E)");
+  drawOverlayRect(tX + tW * 0.725, tY + tH * 0.38, 34, 28, input.r4(), "R4\n(C)");
 
   // --- LEGEND / NOTES CARD (Bottom Right) ---
   drawCard(540, 344, 400, 204, "ARCADE & HARDWARE NOTES");
@@ -101,7 +98,7 @@ function draw() {
   textAlign(LEFT, TOP);
   textSize(12);
   let notes = [
-    "• Exit Game: (-) SELECT [8] or HOME [16] (Debian) / ESC",
+    "• Exit Game: Press (-) SELECT [8] or ESC.",
     "• Star (★) Button: Hardware-only macro mapper.",
     "   Hold L4/R4 + any button, then press ★ to bind.",
     "• Square (■) Button: Switches onboard profiles.",
@@ -147,7 +144,7 @@ function drawOverlayPin(x, y, size, isPressed, label) {
   fill(isPressed ? 0 : 255);
   noStroke();
   textAlign(CENTER, CENTER);
-  textSize(8.5);
+  textSize(8);
   textStyle(BOLD);
   text(label, x, y);
   pop();
