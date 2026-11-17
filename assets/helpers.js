@@ -12,7 +12,7 @@ const input = {
   left()  { return keyIsDown(LEFT_ARROW)  || keyIsDown(65) || this._btn(14); }, // A / Left
   right() { return keyIsDown(RIGHT_ARROW) || keyIsDown(68) || this._btn(15); }, // D / Right
 
-  // --- FACE BUTTONS (8BitDo Ultimate 2C Xbox Layout) ---
+  // --- FACE BUTTONS (Xbox / 8BitDo Ultimate 2C Layout) ---
   a() { return keyIsDown(32) || keyIsDown(75) || this._btn(0); }, // Bottom (A) -> Space / K
   b() { return keyIsDown(76) || this._btn(1); },                  // Right  (B) -> L
   x() { return keyIsDown(74) || this._btn(2); },                  // Left   (X) -> J
@@ -23,16 +23,17 @@ const input = {
   rb() { return keyIsDown(69)      || this._btn(5); },  // Right Bumper  -> E
   lt() { return keyIsDown(SHIFT)   || this._btn(6); },  // Left Trigger  -> Shift
   rt() { return keyIsDown(CONTROL) || this._btn(7); },  // Right Trigger -> Ctrl
-  l4() { return keyIsDown(90)      || this._btn(16); }, // Extra L4      -> Z
-  r4() { return keyIsDown(67)      || this._btn(17); }, // Extra R4      -> C
+  l4() { return keyIsDown(90)      || this._btn(17); }, // Extra L4      -> Z
+  r4() { return keyIsDown(67)      || this._btn(18); }, // Extra R4      -> C
 
   // --- ANALOG STICK CLICKS ---
   l3() { return keyIsDown(70) || this._btn(10); }, // Left Stick Click  -> F
   r3() { return keyIsDown(82) || this._btn(11); }, // Right Stick Click -> R
 
   // --- SYSTEM / MENU ---
-  select() { return keyIsDown(ESCAPE) || keyIsDown(BACKSPACE) || this._btn(8); }, // View (-) -> Esc
-  start()  { return keyIsDown(ENTER)  || keyIsDown(80)        || this._btn(9); }, // Menu (+) -> Enter / P
+  select() { return keyIsDown(ESCAPE) || keyIsDown(BACKSPACE) || this._btn(8); },  // (-) View -> Esc
+  start()  { return keyIsDown(ENTER)  || keyIsDown(80)        || this._btn(9); },  // (+) Menu -> Enter / P
+  home()   { return keyIsDown(72)     || this._btn(16); },                         // Home     -> H (Debian [16])
 
   // --- SINGLE-PRESS TAP DETECTORS ---
   aPressed()      { return this._wasTapped('a', this.a()); },
@@ -72,10 +73,6 @@ const input = {
     return 0;
   }
 };
-
-// =================================================================
-// GAME DEVELOPMENT HELPER FUNCTIONS
-// =================================================================
 
 function hitsRect(x1, y1, w1, h1, x2, y2, w2, h2) {
   return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
