@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Makerspace Arcade</title>
+  <style>
+    * { box-sizing: border-box; }
+    
+    html, body {
+      margin: 0; padding: 0;
+      width: 100vw; height: 100vh;
+      background: #090d16;
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+    }
+
+    #menu-view {
+      display: flex; flex-direction: column; height: 100vh; padding: 30px;
+    }
+
+    header { text-align: center; margin-bottom: 20px; flex-shrink: 0; }
+
+    h1 {
+      font-size: 2.8rem; margin: 0;
+      color: #00f3ff; 
+      text-shadow: 0 0 12px rgba(0,243,255,0.5);
+      letter-spacing: 2px; text-transform: uppercase;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 340px));
+      gap: 20px;
+      overflow-y: auto;
+      padding: 10px;
+      flex-grow: 1;
+      align-content: start;
+    }
+
+    .card {
+      background: #161f33;
+      border: 2px solid #2d3f66;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      height: 96px;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .card.selected {
+      border-color: #00f3ff;
+      background: #1e2c4a;
+      box-shadow: 0 0 8px rgba(0, 243, 255, 0.7); 
+    }
+
+    .card-icon {
+      width: 56px; height: 56px;
+      border-radius: 8px;
+      background: #090d16;
+      border: 1px solid #2d3f66;
+      margin-right: 14px;
+      flex-shrink: 0;
+      object-fit: cover;
+    }
+
+    .card.selected .card-icon { border-color: #00f3ff; }
+
+    .card-info {
+      display: flex; flex-direction: column; justify-content: center; overflow: hidden;
+    }
+
+    .card h3 { 
+      margin: 0 0 2px 0; 
+      font-size: 1.05rem; 
+      color: #fff; 
+      white-space: nowrap; 
+      overflow: hidden; 
+      text-overflow: ellipsis; 
+    }
+
+    .meta-line { font-size: 0.75rem; color: #94a3b8; margin-top: 1px; }
+
+    .category-label {
+      font-size: 0.65rem; color: #00f3ff; text-transform: uppercase;
+      margin-bottom: 2px; letter-spacing: 1px; font-weight: bold;
+    }
+
+    /* Iframe and Exit UI */
+    #game-container {
+      display: none; position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: #000; z-index: 1000;
+    }
+    iframe { width: 100%; height: 100%; border: none; }
+
+    #exit-btn {
+      position: fixed; top: 15px; right: 20px;
+      background: rgba(239, 68, 68, 0.9); color: #fff;
+      border: none; padding: 10px 20px; border-radius: 20px;
+      font-size: 0.9rem; font-weight: bold; cursor: pointer;
+      z-index: 2000; display: none;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    #exit-btn:hover { background: #dc2626; }
+  </style>
+</head>
+<body>
+
+  <div id="menu-view">
+    <header>
+      <h1>Makerspace Arcade</h1>
+      <p style="color: #64748b; font-size: 1rem; margin-top: 4px;">
+        PRESS (A) or ENTER to Launch Game | Press SELECT (-) or ESC to Exit
+      </p>
+    </header>
+    <div id="game-grid" class="grid"></div>
+  </div>
+
+  <button id="exit-btn" onclick="exitGame()">✖ Exit Game (ESC / SELECT)</button>
+  
+  <div id="game-container">
+    <iframe id="game-frame" allow="gamepad; autoplay; fullscreen" src=""></iframe>
+  </div>
+
+  <script>
+    let games = [];
+    let selectedIndex = 0;
+    let inGame = false;
+    let lastNavTime = 0;
+    let joypadFound = false;
+
+    async function loadGames() {
+      try {
+        // Cache-busting timestamp ensures kiosks always see newly pushed games
+        const res = await fetch(`games.json?t=${Date.now()}`);
+        if (!res.ok) throw new Error("Failed to load games.json");
+        const data = await res.json();
+        games = [
+          ...data.showcase.map(g => ({ ...g, catLabel: 'Showcase' })),
+          ...data.sandbox.map(g => ({ ...g, catLabel: 'Sandbox' }))
+        ];
+        if (games.length > 0) selectedIndex = 0;
+        renderGrid();
+      } catch (err) {
+        console.error("Critical error loading arcade games:", err);
+        const grid = document.getElementById('game-grid');
+        grid.innerHTML = `<p style="text-align:center; grid-column: 1/-1; color: #ef4444;">
+          Failed to load games.json.<br>Run build_and_push.py and verify GitHub Pages deployment.
+        </p>`;
+      }
+    }
+
+    function renderGrid() {
+      const grid = document.getElementById('game-grid');
+      grid.innerHTML = '';
+      if (games.length === 0) {
+        grid.innerHTML = '<p style="text-align:center; grid-column: 1/-1; color: #64748b; margin-top: 50px;">No games detected yet! Add folders to showcase/ or sandbox/ and run build_and_push.py.</p>';
+        return;
+      }
+      
+      games.forEach((game, idx) => {
+        const card = document.createElement('div');
+        card.className = `card ${idx === selectedIndex ? 'selected' : ''}`;
+        
+        const iconSrc = game.iconUrl || 'assets/default_icon.png';
+        const title = game.title || 'Untitled Game';
+        const dev = game.developer || 'Unknown';
+        const aiTool = game.ai || 'Unknown';
+        const date = game.date || 'Unknown';
+        
+        card.innerHTML = `
+          <img class="card-icon" src="${iconSrc}" onerror="this.src='assets/default_icon.png'">
+          <div class="card-info">
+            <div class="category-label">${game.catLabel}</div>
+            <h3>${title}</h3>
+            <div class="meta-line"><b>Dev:</b> ${dev}</div>
+            <div class="meta-line"><b>AI:</b> ${aiTool}</div>
+            <div class="meta-line"><b>Date:</b> ${date}</div>
+          </div>
+        `;
+        card.onclick = () => launchGame(idx);
+        grid.appendChild(card);
+      });
+    }
+
+    function getColumnCount() {
+      const grid = document.getElementById('game-grid');
+      const gridStyle = window.getComputedStyle(grid);
+      const templateCols = gridStyle.getPropertyValue('grid-template-columns');
+      if (!templateCols) return 1;
+      return templateCols.trim().split(/\s+/).length;
+    }
+
+    function updateSelection(direction) {
+      if (games.length === 0 || inGame) return;
+      const cols = getColumnCount();
+      let newIndex = selectedIndex;
+
+      if (direction === 'left') newIndex = selectedIndex - 1;
+      else if (direction === 'right') newIndex = selectedIndex + 1;
+      else if (direction === 'up') newIndex = selectedIndex - cols;
+      else if (direction === 'down') newIndex = selectedIndex + cols;
+
+      if (newIndex >= 0 && newIndex < games.length) {
+        selectedIndex = newIndex;
+        renderGrid();
+        const selectedEl = document.querySelectorAll('.card')[selectedIndex];
+        if (selectedEl) selectedEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    function launchGame(idx) {
+      if (!games[idx]) return;
+      inGame = true;
+      const iframe = document.getElementById('game-frame');
+      iframe.src = games[idx].url;
+      document.getElementById('game-container').style.display = 'block';
+      document.getElementById('exit-btn').style.display = 'block';
+
+      iframe.onload = () => {
+        iframe.focus();
+        try {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') exitGame();
+          });
+        } catch (err) {
+          // Expected for cross-origin external GitHub Pages games; gamepad SELECT and Exit button still work
+        }
+      };
+    }
+
+    function exitGame() {
+      inGame = false;
+      const iframe = document.getElementById('game-frame');
+      iframe.src = '';
+      document.getElementById('game-container').style.display = 'none';
+      document.getElementById('exit-btn').style.display = 'none';
+      window.focus();
+    }
+
+    window.addEventListener('message', (event) => {
+      if (event.data === 'EXIT_GAME') exitGame();
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') exitGame();
+      if (!inGame) {
+        if (e.key === 'ArrowRight' || e.key === 'd') updateSelection('right');
+        if (e.key === 'ArrowLeft'  || e.key === 'a') updateSelection('left');
+        if (e.key === 'ArrowDown'  || e.key === 's') updateSelection('down');
+        if (e.key === 'ArrowUp'    || e.key === 'w') updateSelection('up');
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'k') launchGame(selectedIndex);
+      }
+    });
+
+    function pollGamepad() {
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+      let pad = null;
+      
+      for (let i = 0; i < gamepads.length; i++) {
+        if (gamepads[i]) { 
+          pad = gamepads[i]; 
+          if (!joypadFound) { 
+            joypadFound = true;
+            document.querySelector('header p').textContent = `Joypad Active: ${pad.id} — Navigate with Stick / D-Pad`;
+          }
+          break; 
+        }
+      }
+
+      const now = Date.now();
+
+      if (pad && (now - lastNavTime > 200)) { 
+        const btnPressed = (idx) => pad.buttons[idx] && pad.buttons[idx].pressed;
+        
+        if (inGame) {
+          if (btnPressed(8)) { // SELECT (-) exits any game, including external iframes
+            exitGame();
+            lastNavTime = now;
+          }
+        } else {
+          const axisX = pad.axes[0] || 0;
+          const axisY = pad.axes[1] || 0;
+
+          if (axisX > 0.5 || btnPressed(15)) {
+            updateSelection('right');
+            lastNavTime = now;
+          } else if (axisX < -0.5 || btnPressed(14)) {
+            updateSelection('left');
+            lastNavTime = now;
+          } else if (axisY > 0.5 || btnPressed(13)) {
+            updateSelection('down');
+            lastNavTime = now;
+          } else if (axisY < -0.5 || btnPressed(12)) {
+            updateSelection('up');
+            lastNavTime = now;
+          } else if (btnPressed(0) || btnPressed(1) || btnPressed(9)) {
+            launchGame(selectedIndex);
+            lastNavTime = now;
+          }
+        }
+      }
+      requestAnimationFrame(pollGamepad);
+    }
+
+    loadGames();
+    pollGamepad();
+  </script>
+</body>
+</html>

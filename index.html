@@ -9,8 +9,8 @@
     html, body {
       margin: 0; padding: 0;
       width: 100vw; height: 100vh;
-      background: #090d16;
-      color: #fff;
+      background: #161124;
+      color: #f8f6ff;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       overflow: hidden;
     }
@@ -23,9 +23,15 @@
 
     h1 {
       font-size: 2.8rem; margin: 0;
-      color: #00f3ff; 
-      text-shadow: 0 0 12px rgba(0,243,255,0.5);
+      color: #ffd166; 
+      text-shadow: 0 0 14px rgba(255, 209, 102, 0.45);
       letter-spacing: 2px; text-transform: uppercase;
+    }
+
+    .subtitle {
+      color: #dbd0fb;
+      font-size: 1rem;
+      margin-top: 4px;
     }
 
     .grid {
@@ -39,8 +45,8 @@
     }
 
     .card {
-      background: #161f33;
-      border: 2px solid #2d3f66;
+      background: #221a36;
+      border: 2px solid #594b80;
       border-radius: 12px;
       display: flex;
       align-items: center;
@@ -51,22 +57,22 @@
     }
 
     .card.selected {
-      border-color: #00f3ff;
-      background: #1e2c4a;
-      box-shadow: 0 0 8px rgba(0, 243, 255, 0.7); 
+      border-color: #ffd166;
+      background: #312552;
+      box-shadow: 0 0 12px rgba(255, 209, 102, 0.55), inset 0 0 0 1px rgba(219, 208, 251, 0.25); 
     }
 
     .card-icon {
       width: 56px; height: 56px;
       border-radius: 8px;
-      background: #090d16;
-      border: 1px solid #2d3f66;
+      background: #161124;
+      border: 1px solid #9383c2;
       margin-right: 14px;
       flex-shrink: 0;
       object-fit: cover;
     }
 
-    .card.selected .card-icon { border-color: #00f3ff; }
+    .card.selected .card-icon { border-color: #ffd166; }
 
     .card-info {
       display: flex; flex-direction: column; justify-content: center; overflow: hidden;
@@ -75,16 +81,17 @@
     .card h3 { 
       margin: 0 0 2px 0; 
       font-size: 1.05rem; 
-      color: #fff; 
+      color: #ffffff; 
       white-space: nowrap; 
       overflow: hidden; 
       text-overflow: ellipsis; 
     }
 
-    .meta-line { font-size: 0.75rem; color: #94a3b8; margin-top: 1px; }
+    .meta-line { font-size: 0.75rem; color: #dbd0fb; opacity: 0.85; margin-top: 1px; }
+    .meta-line b { color: #9383c2; }
 
     .category-label {
-      font-size: 0.65rem; color: #00f3ff; text-transform: uppercase;
+      font-size: 0.65rem; color: #ffd166; text-transform: uppercase;
       margin-bottom: 2px; letter-spacing: 1px; font-weight: bold;
     }
 
@@ -112,7 +119,7 @@
   <div id="menu-view">
     <header>
       <h1>Makerspace Arcade</h1>
-      <p style="color: #64748b; font-size: 1rem; margin-top: 4px;">
+      <p class="subtitle">
         PRESS (A) or ENTER to Launch Game | Press SELECT (-) or ESC to Exit
       </p>
     </header>
@@ -157,7 +164,7 @@
       const grid = document.getElementById('game-grid');
       grid.innerHTML = '';
       if (games.length === 0) {
-        grid.innerHTML = '<p style="text-align:center; grid-column: 1/-1; color: #64748b; margin-top: 50px;">No games detected yet! Add folders to showcase/ or sandbox/ and run build_and_push.py.</p>';
+        grid.innerHTML = '<p style="text-align:center; grid-column: 1/-1; color: #dbd0fb; margin-top: 50px;">No games detected yet! Add folders to showcase/ or sandbox/ and run build_and_push.py.</p>';
         return;
       }
       
