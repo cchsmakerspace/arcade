@@ -53,6 +53,16 @@
       "url": "sandbox/Coin_Collector/index.html"
     },
     {
+      "id": "sandbox_NHL26_Remastered",
+      "folderName": "NHL26_Remastered",
+      "title": "NHL 26 REMASTERED",
+      "developer": "GRAHAM IRVINE, THEO ROBERTS, SETON LONG",
+      "ai": "FULL AI",
+      "date": "GTA 6 REALEASE",
+      "iconUrl": "sandbox/NHL26_Remastered/icon.png",
+      "url": "sandbox/NHL26_Remastered/index.html"
+    },
+    {
       "id": "sandbox_Super_Asteroid_Dodger",
       "folderName": "Super_Asteroid_Dodger",
       "title": "Super Asteroid Dodger",
